@@ -84,9 +84,10 @@
   };
 
   /* ---------- prefijos y latinismos ---------- */
-  const PROPER = /^(Cisjordania|Anticristo|Contrarreforma)$/;
-  const prefDisplay = (w) => (PROPER.test(w) ? w : w.toLowerCase());
-  const latDisplay = (t) => String(t.termino || t).split(/\s+[ou]\s+/)[0].replace(/\s*\(.*?\)\s*/g, ' ').trim();
+  const PROPER = /^(Cisjordania|Anticristo|Contrarreforma)$/i;
+  const prefDisplay = (w) => (PROPER.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w.toLowerCase());
+  P.prefDisplay = prefDisplay;
+  const latDisplay = (t) => String(t.termino || t).split(/\s*\/\s*|\s+[ou]\s+/)[0].replace(/\s*\(.*?\)\s*/g, ' ').trim().toLowerCase();
   P.latDisplay = latDisplay;
   function pickN(list, n, current, k) {
     const used = new Set((current || []).filter((x, j) => j !== k).map(M.fold));

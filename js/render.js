@@ -21,7 +21,12 @@
     if (pos < text.length) runs.push({ t: text.slice(pos) });
     // texto seguido: saltos de línea → espacios
     for (const r of runs) r.t = r.t.replace(/\s*\n\s*/g, ' ');
-    return runs;
+    // lo que va entre corchetes ([...], añadidos) no va en cursiva
+    const out = [];
+    for (const r of runs) {
+      for (const part of r.t.split(/(\[[^\]]*\])/)) { if (part) out.push(Object.assign({}, r, { t: part, n: /^\[[^\]]*\]$/.test(part) })); }
+    }
+    return out;
   };
   E.vocabList = function (S) {
     const out = (S.vocabItems || []).filter((v) => v.on);
@@ -30,8 +35,11 @@
   };
   const listY = (arr) => { const a = arr.filter((x) => x && x.trim()); return a.length <= 1 ? a : [a.slice(0, -1), a[a.length - 1]]; };
   // Frases de la pregunta 4: [{ t, i }]
+  // en el examen: orden alfabético y minúsculas (salvo nombres propios)
+  const coll = new Intl.Collator('es', { sensitivity: 'base' });
+  const abc = (arr) => arr.filter((x) => x && String(x).trim()).map((x) => String(x).trim()).sort((a, b) => coll.compare(a, b));
   E.q4 = function (S) {
-    const p = (S.prev || []).filter((x) => x && x.txt);
+    const p = (S.prev || []).filter((x) => x && x.txt).map((x) => Object.assign({}, x, { txt: x.txt.trim().toLowerCase() })).sort((a, b) => coll.compare(a.txt, b.txt));
     const qa = [{ t: 'Modificación preverbial a partir de ' }];
     if (p.length >= 2) { qa.push({ t: p[0].txt, i: true }, { t: ` (${p[0].n}) y de ` }, { t: p[1].txt, i: true }, { t: ` (${p[1].n}). Cinco derivados en total en lengua propia.` }); }
     else if (p.length === 1) { qa.push({ t: p[0].txt, i: true }, { t: ` (${p[0].n}). Cinco derivados en total en lengua propia.` }); }
@@ -44,9 +52,9 @@
     const commas = (arr) => { const r = []; arr.filter((x) => x && String(x).trim()).forEach((w, k) => { if (k) r.push({ t: ', ' }); r.push({ t: w, i: true }); }); return r; };
     return [
       qa,
-      [{ t: 'Evolución fonética de ' }].concat(items((S.evol || []).map((x) => x && x.w)), [{ t: '.' }]),
-      [{ t: 'Señala el prefijo y el significado que aporta a estas palabras: ' }].concat(commas(S.pref || []), [{ t: '.' }]),
-      [{ t: 'Latinismos: ' }].concat(commas(S.latin || []), [{ t: '.' }])
+      [{ t: 'Evolución fonética de ' }].concat(items(abc((S.evol || []).map((x) => x && x.w))), [{ t: '.' }]),
+      [{ t: 'Señala el prefijo y el significado que aporta a estas palabras: ' }].concat(commas(abc((S.pref || []).map((w) => w && M.Propose.prefDisplay(String(w).trim())))), [{ t: '.' }]),
+      [{ t: 'Latinismos: ' }].concat(commas(abc((S.latin || []).map((w) => w && String(w).trim().toLowerCase()))), [{ t: '.' }])
     ];
   };
   E.questions = [
@@ -58,7 +66,7 @@
   E.fontStack = (f) => `'${f || 'Palatino Linotype'}', 'Palatino Linotype', 'Book Antiqua', Palatino, 'Gentium Book Plus', serif`;
 
   /* ---------- HTML ---------- */
-  const runsHtml = (rs) => rs.map((r) => { let h = esc(r.t); if (r.i) h = `<i>${h}</i>`; if (r.u) h = `<u>${h}</u>`; return h; }).join('');
+  const runsHtml = (rs) => rs.map((r) => { let h = esc(r.t); if (r.i) h = `<i>${h}</i>`; if (r.n) h = `<span class="nr">${h}</span>`; if (r.u) h = `<u>${h}</u>`; return h; }).join('');
   E.pageCss = function (S) {
     const lh = S.interlineado || 3;
     return `
@@ -69,6 +77,7 @@
 .page .ttl { margin: 9pt 0 0; padding: 5pt 0 6pt; border-top: .6pt solid #9a9a9a; border-bottom: .6pt solid #9a9a9a; text-align: center; }
 .page .ttl .t { font-weight: bold; }
 .page .txt { font-style: italic; text-align: justify; line-height: ${lh}; margin: 12pt 0 6pt; hyphens: manual; }
+.page .txt .nr { font-style: normal; }
 .page .txt u { text-decoration-thickness: .7pt; text-underline-offset: 2pt; }
 .page .voc { border: 1px solid #222; padding: 3pt 7pt 4pt; margin: 6pt 0 10pt; }
 .page .voc .vh { text-align: center; font-weight: bold; margin-bottom: 1pt; }
@@ -141,7 +150,7 @@ ${E.pageCss(S)}
     tl.forEach((r, k) => { body += para(r, `${pbdr(k === 0, k === tl.length - 1)}<w:spacing w:before="${k === 0 ? 200 : 0}" w:after="0"/><w:jc w:val="center"/>`); });
     // texto
     const lh = Math.round(240 * (S.interlineado || 3));
-    body += para(E.textRuns(S).map((r) => ({ t: r.t, u: r.u, i: true })), `<w:spacing w:before="240" w:after="120" w:line="${lh}" w:lineRule="auto"/><w:jc w:val="both"/>`);
+    body += para(E.textRuns(S).map((r) => ({ t: r.t, u: r.u, i: !r.n })), `<w:spacing w:before="240" w:after="120" w:line="${lh}" w:lineRule="auto"/><w:jc w:val="both"/>`);
     // vocabulario
     const voc = E.vocabList(S);
     if (voc.length) {
