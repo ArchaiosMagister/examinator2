@@ -1,0 +1,21 @@
+EXAMINATOR EN EL NAVEGADOR
+==========================
+
+Esta carpeta contiene Examinator completo como pagina web. Funciona en cualquier
+ordenador (Windows, Mac, Linux, Chromebook) con un navegador actual (Chrome, Edge,
+Firefox o Safari), sin instalar nada.
+
+Dos formas de usarla:
+
+1. Sin internet ni servidor: descomprime el zip y abre "index.html" con doble clic.
+   Para descargar textos de Perseus si hace falta conexion.
+
+2. En linea: sube la carpeta tal cual a cualquier alojamiento web (la web del centro,
+   GitHub Pages, Netlify...) y comparte la direccion de index.html.
+
+Diferencias con la version de escritorio:
+- "Exportar PDF" abre la ventana de impresion del navegador: elige "Guardar como PDF".
+- "Exportar Word" y "Guardar" descargan el archivo en la carpeta de Descargas.
+- Los textos descargados y las listas modificadas se guardan en el propio navegador
+  (si se borran los datos de navegacion, se pierden; el resto sigue igual).
+- La primera carga tarda unos segundos (el diccionario ocupa unos 9 MB).
