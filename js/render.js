@@ -63,6 +63,10 @@
     'Análisis morfológico de las palabras subrayadas. (1p.)',
     'Elige dos de estas cuatro preguntas (2p.):'
   ];
+  E.fontSize = (S) => { const n = Number(S.tamano ?? 11); return Number.isFinite(n) && n >= 6 && n <= 36 ? n : 11; };
+  E.questionSpace = (S) => { const n = Number(S.espacioPreguntas ?? 0.3); return Number.isFinite(n) && n >= 0 && n <= 10 ? n : 0.3; };
+  E.questionList = (S) => E.questions.map((q) => S.documento === 'repaso' ? q.replace(/\s*\(\d+p\.\)/g, '') : q);
+  E.literatureRef = (L) => [L.autor, L.obra, L.cita].filter(Boolean).join(', ');
   E.fontStack = (f) => `'${f || 'Palatino Linotype'}', 'Palatino Linotype', 'Book Antiqua', Palatino, 'Gentium Book Plus', serif`;
 
   /* ---------- HTML ---------- */
@@ -70,22 +74,26 @@
   E.pageCss = function (S) {
     const lh = S.interlineado || 3;
     return `
-.page { font-family: ${E.fontStack(S.fuente)}; font-size: 11pt; color: #111; line-height: 1.35; }
+.page { font-family: ${E.fontStack(S.fuente)}; font-size: ${E.fontSize(S)}pt; color: #111; line-height: 1.35; }
 .page .hdr { width: 100%; border: 1px solid #222; border-collapse: collapse; font-weight: bold; }
 .page .hdr td { padding: 3pt 7pt; }
 .page .hdr td:last-child { width: 26%; }
 .page .ttl { margin: 9pt 0 0; padding: 5pt 0 6pt; border-top: .6pt solid #9a9a9a; border-bottom: .6pt solid #9a9a9a; text-align: center; }
 .page .ttl .t { font-weight: bold; }
 .page .txt { font-style: italic; text-align: justify; line-height: ${lh}; margin: 12pt 0 6pt; hyphens: manual; }
+.page .literature { margin-top: 12pt; }
+.page .litLatin, .page .litTranslation { white-space: pre-wrap; }
+.page .litLatin { font-style: italic; }
+.page .litTranslation { min-height: 3cm; }
 .page .txt .nr { font-style: normal; }
 .page .txt u { text-decoration-thickness: .7pt; text-underline-offset: 2pt; }
 .page .voc { border: 1px solid #222; padding: 3pt 7pt 4pt; margin: 6pt 0 10pt; }
 .page .voc .vh { text-align: center; font-weight: bold; margin-bottom: 1pt; }
 .page .voc p { margin: 0; padding-left: 1.2em; text-indent: -1.2em; }
 .page ol.q { margin: 0; padding-left: 2.1em; }
-.page ol.q > li { font-weight: bold; margin: 0 0 3pt; padding-left: .4em; }
+.page ol.q > li { font-weight: bold; margin: 0 0 ${E.questionSpace(S)}cm; padding-left: .4em; }
 .page ol.s { list-style: lower-alpha; font-weight: normal; padding-left: 1.6em; margin: 3pt 0 0; }
-.page ol.s > li { font-weight: normal; text-align: justify; padding-left: .4em; margin-bottom: ${S.hueco || 2.6}cm; }
+.page ol.s > li { font-weight: normal; text-align: justify; padding-left: .4em; margin-bottom: ${S.hueco ?? 2.6}cm; }
 .page ol.s > li:last-child { margin-bottom: 0; }
 `;
   };
@@ -102,8 +110,9 @@
 <div class="txt">${runsHtml(E.textRuns(S)) || '&nbsp;'}</div>
 ${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ‘${esc(v.trad)}’${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
 <ol class="q">
-${E.questions.map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
+${E.questionList(S).map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
 </ol>
+${S.literatura && S.literatura.texto ? `<section class="literature"><h3>Literatura${S.documento === 'repaso' ? '' : ' (2p.)'}</h3><p>${esc(E.literatureRef(S.literatura))}</p><div class="litLatin">${esc(S.literatura.texto)}</div><p><b>Traducción</b></p><div class="litTranslation">${esc(S.literatura.traduccion || '')}</div></section>` : ''}
 </div>`;
   };
   E.printDoc = function (S) {
@@ -160,21 +169,29 @@ ${E.pageCss(S)}
       body += para([{ t: '' }], sp0);
     }
     // preguntas
-    E.questions.forEach((q, k) => {
-      body += para([{ t: (k + 1) + '.', b: true }, { t: '\t' }, { t: q, b: true }].map((r) => r.t === '\t' ? Object.assign(r, { tab: true }) : r), `<w:tabs><w:tab w:val="left" w:pos="709"/></w:tabs><w:spacing w:before="0" w:after="60"/><w:ind w:left="709" w:hanging="425"/>`);
+    E.questionList(S).forEach((q, k) => {
+      body += para([{ t: (k + 1) + '.', b: true }, { t: '\t' }, { t: q, b: true }].map((r) => r.t === '\t' ? Object.assign(r, { tab: true }) : r), `<w:tabs><w:tab w:val="left" w:pos="709"/></w:tabs><w:spacing w:before="0" w:after="${Math.round(E.questionSpace(S) * 567)}"/><w:ind w:left="709" w:hanging="425"/>`);
     });
-    const hue = Math.round((S.hueco || 2.6) * 567);
+    const hue = Math.round((S.hueco ?? 2.6) * 567);
     E.q4(S).forEach((r, k) => {
       const last = k === 3;
       body += para([{ t: 'abcd'[k] + '.' }, { t: '\t' }].concat(r), `<w:tabs><w:tab w:val="left" w:pos="1134"/></w:tabs><w:spacing w:before="0" w:after="${last ? 0 : hue}"/><w:ind w:left="1134" w:hanging="425"/><w:jc w:val="both"/>`);
     });
+    if (S.literatura && S.literatura.texto) {
+      const L = S.literatura;
+      body += para([{ t: 'Literatura' + (S.documento === 'repaso' ? '' : ' (2p.)'), b: true }], '<w:spacing w:before="240"/><w:keepNext/>');
+      body += para([{ t: E.literatureRef(L) }], sp0);
+      for (const line of L.texto.split('\n')) body += para([{ t: line, i: true }], sp0);
+      body += para([{ t: 'Traducción', b: true }], '<w:spacing w:before="120"/><w:keepNext/>');
+      for (const line of (L.traduccion || '').split('\n')) body += para([{ t: line }], L.traduccion ? sp0 : '<w:spacing w:after="1701"/>');
+    }
     body = body.replace(/<w:r><w:t xml:space="preserve">\t<\/w:t><\/w:r>/g, '<w:r><w:tab/></w:r>').replace(/<w:r><w:rPr>(<w:[bi]\/>)*<\/w:rPr><w:t xml:space="preserve">\t<\/w:t><\/w:r>/g, '<w:r><w:tab/></w:r>');
     const sect = `<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1247" w:bottom="1134" w:left="1247" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>`;
     const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
     const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${body}${sect}</w:body></w:document>`;
     const fld = (code) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
     const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${NS}><w:p><w:pPr><w:jc w:val="center"/></w:pPr>${fld('PAGE')}<w:r><w:t xml:space="preserve"> | </w:t></w:r>${fld('NUMPAGES')}</w:p></w:ftr>`;
-    const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${X(font)}" w:hAnsi="${X(font)}" w:cs="${X(font)}" w:eastAsia="${X(font)}"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="es-ES"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/></w:style></w:styles>`;
+    const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${X(font)}" w:hAnsi="${X(font)}" w:cs="${X(font)}" w:eastAsia="${X(font)}"/><w:sz w:val="${Math.round(E.fontSize(S) * 2)}"/><w:szCs w:val="${Math.round(E.fontSize(S) * 2)}"/><w:lang w:val="es-ES"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/></w:style></w:styles>`;
     const z = new JSZip();
     z.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
     z.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
@@ -185,3 +202,4 @@ ${E.pageCss(S)}
     return z.generateAsync({ type: 'base64', compression: 'DEFLATE' });
   };
 })();
+

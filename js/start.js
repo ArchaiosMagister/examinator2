@@ -2,7 +2,7 @@
 'use strict';
 (function () {
   const { $ } = M;
-  const FONTS = ['Palatino Linotype', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
+  const FONTS = ['Palatino', 'Palatino Linotype', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
 
   const baseName = () => {
     const S = M.S;
@@ -38,14 +38,21 @@
     const S = M.S;
     const html = `
       <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option>${f}</option>`).join('')}</select>
-        <span class="small muted">Palatino Linotype y Book Antiqua vienen con Windows y tienen todas las vocales con cantidad.</span></div>
+        <span class="small muted">Palatino y Palatino Linotype se usan si están instaladas; Gentium Book Plus está incluida como alternativa.</span></div>
+      <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
+      <div class="field"><label>Espacio entre preguntas (cm)</label><input class="sq" type="number" min="0" max="10" step="0.1"></div>
       <div class="field"><label>Interlineado del texto latino</label><select class="si"><option value="2">doble</option><option value="2.5">2,5</option><option value="3">triple</option><option value="3.5">3,5</option></select></div>
       <div class="field"><label>Espacio para responder tras cada apartado de la pregunta 4</label><select class="sh"><option value="1.8">pequeño</option><option value="2.6">medio</option><option value="3.5">grande</option></select></div>
-      <p class="small muted">Los textos descargados y las listas se guardan en la carpeta <i>datos</i>, junto a la carpeta del programa.</p>`;
+      <button class="tbtn sv">Vocabulario preferente…</button><p class="small muted">Los ajustes, el vocabulario y las descargas se guardan en este navegador.</p>`;
     const m = M.modal('Ajustes', html, [{ label: 'Cerrar', primary: true }]);
     const b = m.body;
+    b.querySelector('.sz').value = String(S.tamano ?? 11);
+    b.querySelector('.sq').value = String(S.espacioPreguntas ?? 0.3);
+    b.querySelector('.sv').onclick = () => M.openVocabulary();
     b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(S.interlineado); b.querySelector('.sh').value = String(S.hueco);
     b.addEventListener('change', (e) => {
+      if (e.target.classList.contains('sz')) { S.tamano = +e.target.value; M.store.set('tamano', S.tamano); }
+      if (e.target.classList.contains('sq')) { const n = +e.target.value; if (!Number.isFinite(n) || n < 0 || n > 10) return; S.espacioPreguntas = n; M.store.set('espacioPreguntas', n); }
       if (e.target.classList.contains('sf')) { S.fuente = e.target.value; M.store.set('fuente', S.fuente); }
       if (e.target.classList.contains('si')) { S.interlineado = +e.target.value; M.store.set('interlineado', S.interlineado); }
       if (e.target.classList.contains('sh')) { S.hueco = +e.target.value; M.store.set('hueco', S.hueco); }
@@ -69,3 +76,4 @@
   }
   window.addEventListener('DOMContentLoaded', init);
 })();
+
