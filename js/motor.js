@@ -238,7 +238,9 @@ function biblio() {
     for (const f of fs.existsSync(D) ? fs.readdirSync(D).filter((x) => x.endsWith('.json')) : []) {
       const j = JSON.parse(fs.readFileSync(path.join(D, f), 'utf8'));
       bib.inc.set(j.urn, path.join(D, f));
-      bib.items.push({ i: bib.items.length, urn: j.urn, author: j.author, title: j.title, genre: j.genre, latin: j.latin, desc: j.desc, builtin: true });
+      const existing = bib.items.find((it) => it.urn === j.urn);
+      const item = { i: existing ? existing.i : bib.items.length, urn: j.urn, author: j.author, title: j.title, genre: j.genre, latin: j.latin, desc: j.desc, builtin: true };
+      if (existing) Object.assign(existing, item); else bib.items.push(item);
     }
   }
   return bib;
@@ -1592,3 +1594,4 @@ function req(from) { return function (name) {
 }; }
 window.EXREADY.then(() => req('main.js')('./engine/engine.js'));
 })();
+

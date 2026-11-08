@@ -13,6 +13,8 @@
       texto: '', textAnalyzed: '', tokens: [],
       qty: M.store.get('qty', 'modelo'), vocMode: 'elegir', vocabItems: [],
       subr: [], prev: [{ txt: '', n: 3 }, { txt: '', n: 2 }], evol: [], pref: [], latin: [],
+      documento: 'examen', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
+      tamano: M.store.get('tamano', 10.5), espacioPreguntas: M.store.get('espacioPreguntas', 0.3),
       fuente: M.store.get('fuente', 'Palatino Linotype'), interlineado: M.store.get('interlineado', 3), hueco: M.store.get('hueco', 2.6)
     };
     P.evol(S); P.pref(S); P.latin(S);
@@ -70,22 +72,46 @@
     const lids = textLids();
     const old = new Map((S.vocabItems || []).filter((v) => v.lid).map((v) => [v.lid, v]));
     const need = lids.filter((l) => !old.has(l));
-    const fresh = need.length ? await M.call('vocabEntries', { lids: need, mode: S.qty }) : [];
+    const fresh = need.length ? await M.vocabEntries({ lids: need, mode: S.qty }) : [];
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     const items = [];
     for (const lid of lids) {
       if (old.has(lid)) { items.push(old.get(lid)); continue; }
       const e = fm.get(lid); if (!e) continue;
-      items.push({ lid, head: e.head, trad: e.trad, note: e.note, proper: e.proper, on: S.vocMode === 'todo' || !!e.proper });
+      items.push({ lid, head: e.head, trad: e.trad, note: e.note, proper: e.proper, preferred: !!e.preferred, on: S.vocMode === 'todo' || !!e.proper });
     }
     for (const v of S.vocabItems || []) if (v.manual) items.push(v);
+    const unknown = new Set();
+    for (const t of S.tokens || []) if (!t.sel) {
+      const e = M.Vocabulary.find([t.w], true) || M.Vocabulary.find([t.w]);
+      if (e && !unknown.has(e.head)) {
+        unknown.add(e.head);
+        const previous = (S.vocabItems || []).find((v) => v.customWord === e.head);
+        items.push(previous || { customWord: e.head, head: e.head, trad: e.trad, note: e.note, preferred: true, on: S.vocMode === 'todo' });
+      }
+    }
     S.vocabItems = items;
   }
+  M.refreshVocab = async function () {
+    const S = M.S;
+    const fresh = await M.vocabEntries({ lids: textLids(), mode: S.qty });
+    const fm = new Map(fresh.map((e) => [e.lid, e]));
+    for (const v of S.vocabItems || []) if (fm.has(v.lid)) {
+      const e = fm.get(v.lid);
+      if (!v.eHead) v.head = e.head;
+      if (!v.eTrad) v.trad = e.trad;
+      if (!v.eNote) v.note = e.note;
+      v.preferred = !!e.preferred;
+    }
+    S.vocabItems = S.vocabItems.filter((v) => !v.customWord);
+    await rebuildVocab(false);
+    renderVocab(); renderWords(); changed();
+  };
   async function requantify() {
     const S = M.S;
     const lids = S.vocabItems.filter((v) => v.lid && !v.eHead).map((v) => v.lid);
     if (!lids.length) return;
-    const fresh = await M.call('vocabEntries', { lids, mode: S.qty });
+    const fresh = await M.vocabEntries({ lids, mode: S.qty });
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     for (const v of S.vocabItems) if (v.lid && !v.eHead && fm.has(v.lid)) v.head = fm.get(v.lid).head;
   }
@@ -109,6 +135,7 @@
     ed.innerHTML = `
       <div class="card">
         <h3>Cabecera</h3>
+        <label>Documento<select class="documentMode"><option value="examen">Examen</option><option value="repaso">Texto de repaso</option></select></label>
         <div class="grid2">
           <label>Primera casilla<input type="text" data-k="tipo"></label>
           <label>Materia<input type="text" data-k="asig"></label>
@@ -152,7 +179,28 @@
         <h3>Pregunta 4 <span class="muted small">— «Elige dos de estas cuatro preguntas»</span></h3>
         <div class="q4"></div>
         <div class="row" style="margin-top:8px"><button class="tbtn" data-act="q4all">Generar de nuevo las cuatro</button></div>
+      </div>
+      <div class="card">
+        <h3>Texto de literatura</h3>
+        <button class="tbtn" data-act="literatura">Elegir Miles Gloriosus, Eneida IV o Heroida I…</button>
+        <p class="small muted">Selecciona el fragmento latino. Después puedes pegar su traducción.</p>
+        <div class="grid3">${[['autor', 'Autor'], ['obra', 'Obra'], ['cita', 'Pasaje']].map(([k, label]) => `<label>${label}<input data-lit="${k}"></label>`).join('')}</div>
+        <label class="full">Texto latino<textarea data-lit="texto" rows="5" spellcheck="false"></textarea></label>
+        <label class="full">Traducción<textarea data-lit="traduccion" rows="5" placeholder="Pega aquí la traducción cuando quieras incorporarla."></textarea></label>
       </div>`;
+    S.literatura = S.literatura || { texto: '', traduccion: '' };
+    for (const inp of $$('[data-lit]', ed)) {
+      inp.value = S.literatura[inp.dataset.lit] || '';
+      inp.oninput = () => { S.literatura[inp.dataset.lit] = inp.value; changed(); };
+    }
+    $('.documentMode', ed).value = S.documento || 'examen';
+    $('.documentMode', ed).onchange = (e) => {
+      const previous = S.documento === 'repaso' ? 'Repaso' : 'Examen';
+      S.documento = e.target.value;
+      if (!S.tipo || S.tipo === previous) S.tipo = S.documento === 'repaso' ? 'Repaso' : 'Examen';
+      $('[data-k="tipo"]', ed).value = S.tipo;
+      changed();
+    };
     for (const inp of $$('[data-k]', ed)) {
       inp.value = S[inp.dataset.k] || '';
       inp.addEventListener('input', () => {
@@ -192,6 +240,7 @@
       renderVocab(); renderWords(); changed(); return;
     }
     const act = b.dataset.act;
+    if (act === 'literatura') M.openLibrary('literatura');
     if (act === 'lib') M.openLibrary();
     if (act === 'subrAll') { P.underline(S); renderSubr(); renderWords(); changed(); }
     if (act === 'subrOne') {
@@ -206,9 +255,11 @@
     if (act === 'vall' || act === 'vnone') { for (const v of S.vocabItems) v.on = act === 'vall'; renderVocab(); renderWords(); changed(); }
     if (act === 'vdel') { const k = +b.dataset.k; S.vocabItems.splice(k, 1); renderVocab(); changed(); }
     if (act === 'vreset') {
-      const v = S.vocabItems[+b.dataset.k]; if (!v || !v.lid) return;
-      const [e2] = await M.call('vocabEntries', { lids: [v.lid], mode: S.qty });
-      if (e2) Object.assign(v, { head: e2.head, trad: e2.trad, note: e2.note, eHead: false });
+      const v = S.vocabItems[+b.dataset.k]; if (!v) return;
+      if (v.customWord) { const entry = M.Vocabulary.find([v.customWord]); if (entry) Object.assign(v, { head: entry.head, trad: entry.trad, note: entry.note }); renderVocab(); changed(); return; }
+      if (!v.lid) return;
+      const [e2] = await M.vocabEntries({ lids: [v.lid], mode: S.qty });
+      if (e2) Object.assign(v, { head: e2.head, trad: e2.trad, note: e2.note, eHead: false, eTrad: false, eNote: false });
       renderVocab(); changed();
     }
     if (act === 'q4all') { P.preverbs(S); P.evol(S); P.pref(S); P.latin(S); renderQ4(); changed(); }
@@ -341,8 +392,8 @@
       const row = e.target.closest('.vrow'); if (!row) return;
       const v = S.vocabItems[+row.dataset.k];
       if (e.target.classList.contains('vh')) { v.head = e.target.value; v.eHead = true; }
-      if (e.target.classList.contains('vt')) v.trad = e.target.value;
-      if (e.target.classList.contains('vn')) v.note = e.target.value;
+      if (e.target.classList.contains('vt')) { v.trad = e.target.value; v.eTrad = true; }
+      if (e.target.classList.contains('vn')) { v.note = e.target.value; v.eNote = true; }
       changed();
     };
     box.onchange = (e) => {
@@ -361,3 +412,4 @@
     if (S.texto && S.texto !== S.textAnalyzed) M.analyzeNow();
   };
 })();
+

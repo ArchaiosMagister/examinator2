@@ -4,12 +4,23 @@
   const { $, $$, el, esc } = M;
   const P = M.Propose;
   let cat = null, st = { f: '', g: '', only: false, sel: new Set() }, cur = null, busy = false;
+  let target = 'texto';
+  const literature = new Map([
+    ['phi0119.phi012.perseus-lat2', ''],
+    ['phi0690.phi003.perseus-lat2', '4.'],
+    ['phi0959.phi002.perseus-lat2', '1.']
+  ]);
 
-  M.openLibrary = async function () {
+  M.openLibrary = async function (destination) {
+    target = destination === 'literatura' ? destination : 'texto';
+    cur = null;
     const box = $('#lib');
     box.classList.remove('hidden');
     await loadCatalog();
     if (!box.dataset.built) build(box);
+    $('.rtext', box).innerHTML = '';
+    $('.rt', box).textContent = target === 'literatura' ? 'Elige una obra: Miles Gloriosus, Eneida IV o Heroida I.' : 'Elige una obra para leerla.';
+    $('[data-act=use]', box).disabled = true;
     drawList();
   };
   function close() { $('#lib').classList.add('hidden'); }
@@ -19,7 +30,7 @@
     box.dataset.built = '1';
     box.innerHTML = `
       <div class="lhead">
-        <b>Biblioteca</b> <span class="muted small">Textos latinos de la Perseus Digital Library (CC BY-SA). Descarga las obras que quieras; después se leen sin conexión. Eutropio viene incluido (texto de The Latin Library).</span>
+        <b>Biblioteca</b> <span class="muted small">Eutropio, Julio César y las obras de literatura vienen incluidos. Los demás textos de Perseus se pueden descargar para leer sin conexión. Fuentes y licencias: FUENTES.md.</span>
         <span class="spacer"></span><button class="hbtn" data-act="close">Volver al examen</button>
       </div>
       <div class="lbody">
@@ -93,7 +104,7 @@
     const box = $('#lib .llist'); if (!box || !cat) return;
     const f = M.fold(st.f);
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
-    const items = cat.filter((it) => (!st.only || it.have) && (!st.g || it.genre === st.g) && (!f || M.fold(it.author + ' ' + it.title + ' ' + it.latin).includes(f)))
+    const items = cat.filter((it) => target === 'literatura' ? literature.has(it.urn) : ((!st.only || it.have) && (!st.g || it.genre === st.g) && (!f || M.fold(it.author + ' ' + it.title + ' ' + it.latin).includes(f))))
       .sort((a, b) => coll.compare(a.author, b.author) || coll.compare(a.title, b.title));
     box.innerHTML = items.map((it) => `<div class="lrow ${it.have ? 'have' : ''} ${cur && cur.urn === it.urn ? 'cur' : ''}" data-i="${it.i}">
       <input type="checkbox" ${st.sel.has(it.i) ? 'checked' : ''}>
@@ -105,6 +116,7 @@
     const box = $('#lib');
     $('.rtext', box).innerHTML = '<div class="muted" style="padding:20px">Cargando…</div>';
     const w = await M.call('work', { urn: it.urn });
+    if (target === 'literatura') w.lines = w.lines.filter((line) => line.k !== 'h' && (!literature.get(it.urn) || line.c.startsWith(literature.get(it.urn))));
     cur = { urn: it.urn, author: it.author, title: it.title, latin: it.latin, levels: w.levels, lines: w.lines };
     $('.rt', box).innerHTML = `<b>${esc(it.author)}</b>, <i>${esc(it.latin)}</i> <span class="muted small">· ${esc(it.title)} · ${esc((w.levels || []).join(' / '))}</span>`;
     const frag = document.createDocumentFragment();
@@ -152,9 +164,16 @@
   }
   function useSelection() {
     const r = selRange(); if (!r) return;
+    if (target === 'literatura') {
+      M.S.literatura = { texto: r.text, traduccion: '', autor: cur.author, obra: cur.latin, cita: r.cita, urn: cur.urn };
+      M.renderEditor(); M.persist(); M.preview(); close();
+      M.toast('Texto de literatura incorporado. La traducción queda en blanco.');
+      return;
+    }
     M.setTextFromLibrary({ urn: cur.urn, text: r.text, author: cur.author, obra: cur.latin, cita: r.cita });
     close();
     M.toast('Fragmento copiado al examen. Escribe el título del texto.');
   }
   M.libraryBusy = () => busy;
 })();
+
