@@ -5,6 +5,11 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; img-src 'self' file: data: blob:; style-src 'self' file: 'unsafe-inline'; font-src 'self' file: data:; script-src 'self' file:; connect-src 'self' https://raw.githubusercontent.com; frame-src 'self' blob: about:">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="theme-color" content="#1d5466">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Examinator">
 <title>Examinator</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -18,6 +23,7 @@
   <button class="hbtn" id="btnLib" title="Textos de Perseus: descargar y elegir un fragmento">Biblioteca</button>
   <button class="hbtn" id="btnLists" title="Listas de modificación preverbial, evolución fonética, prefijos y latinismos">Listas</button>
   <button class="hbtn" id="btnSettings" title="Tipo de letra, interlineado y espacios">Ajustes</button>
+  <button class="hbtn" id="btnInstall" title="Instalar Examinator como aplicación">Instalar</button>
   <span class="spacer"></span>
   <span class="busy hidden" id="busy">Analizando…</span>
   <button class="hbtn" id="btnDocx">Exportar Word</button>
@@ -29,6 +35,8 @@
 </main>
 <div id="lib" class="hidden"></div>
 <script src="js/datos.js"></script>
+<script src="js/bancos-datos.js"></script>
+<script src="js/bancos-loader.js"></script>
 <script src="js/incluidos.js"></script>
 <script src="js/shim.js"></script>
 <script src="js/motor.js"></script>
@@ -41,6 +49,7 @@
 <script src="js/library.js"></script>
 <script src="js/lists.js"></script>
 <script src="js/start.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>
 

@@ -1,0 +1,22 @@
+name: Examinator2 — PWA y regresión
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar sintaxis
+        run: |
+          for file in js/*.js; do node --check "$file"; done
+          node --check sw.js
+      - name: Regresión del motor, documentos y biblioteca
+        run: node tests/regression.cjs
+      - name: PWA y bancos académicos sin conexión
+        run: node tests/pwa-banks.cjs
