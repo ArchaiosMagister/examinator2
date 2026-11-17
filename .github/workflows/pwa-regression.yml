@@ -22,3 +22,6 @@ jobs:
         run: node tests/pwa-banks.cjs
       - name: Actualización segura de la PWA
         run: node tests/pwa-refresh.cjs
+      - name: Diagnóstico HTTP del paquete publicado
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-deployed-assets.cjs
