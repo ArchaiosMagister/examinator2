@@ -9,7 +9,9 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const html = read('index.html');
 const manifest = JSON.parse(read('manifest.webmanifest'));
 assert.equal(manifest.display, 'standalone');
-assert.ok(manifest.icons.some((x) => x.sizes === '512x512'));
+assert.ok(manifest.icons.some((x) => x.sizes === '512x512')); 
+assert.ok(manifest.icons.some((x) => x.sizes === '192x192' && x.src === 'icon-192.png'));
+assert.ok(fs.existsSync(path.join(root, 'icon-192.png')));
 const sw = read('sw.js');
 for (const file of ['index.html', 'js/datos.js', 'js/incluidos.js', 'js/bancos-datos.js',
   'js/bancos-loader.js', 'js/motor.js', 'js/shim.js', 'js/pwa.js', 'lib/jszip.min.js']) {
