@@ -129,7 +129,7 @@
     const box = $('#lib');
     if (!box) return;
     box.dataset.mobilePane = pane;
-    for (const btn of M.$('.library-switch [data-act]', box)) {
+    for (const btn of (box.querySelectorAll ? box.querySelectorAll('.library-switch [data-act]') : [])) {
       const selected = (pane === 'catalog' && btn.dataset.act === 'books') ||
         (pane === 'reader' && btn.dataset.act === 'read');
       btn.classList.toggle('on', selected);
