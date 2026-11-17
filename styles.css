@@ -10,7 +10,7 @@
   --rule: #d8d3c7;
   --rule-2: #e6e1d6;
   --accent: #1d5466;
-  --top-band-height: 10px; /* franja separadora ante el difuminado superior de iPadOS */
+  --top-band-height: 50px; /* franja separadora ante el difuminado superior de iPadOS */
   --accent-soft: #d9e8ec;
   --link: #24508a;
   --c-n: #2d6cb5; --c-a: #2f8a4e; --c-p: #b0632b; --c-v: #a2324e;
