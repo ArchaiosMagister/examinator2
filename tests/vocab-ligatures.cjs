@@ -54,7 +54,7 @@ ctx.EXREADY=Promise.resolve();load('js/motor.js');
   // Otros diptongos documentados; conservar las cantidades de las
   // restantes vocales, el paradigma y las grafías en mayúscula.
   assert.match((await entry('caelum')).head,/^cælum, –ī$/);
-  assert.match((await entry('aequitas')).head,/^æquĭtas, æquĭtatis$/);
+  assert.match((await entry('aequitas')).head,/^æquĭtas, æquĭtātis$/);
   assert.match((await entry('praetor')).head,/^prætor,/);
   assert.match((await entry('praesidium')).head,/^præsĭdĭum,/);
   assert.match((await entry('poena')).head,/^pœna, –æ$/);
