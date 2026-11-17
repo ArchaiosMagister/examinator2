@@ -386,7 +386,7 @@
     const S = M.S, F = M.LexicalFilters;
     const prior = S.latinFilter || F.defaultLatin();
     const html = '<p class="small muted">Se conserva la numeración original de los 87 latinismos de GeneradorExamenes. Primero se filtra por número y paridad; después se sortean cuatro distintos.</p>' +
-      '<div class="grid3"><label>Desde <input class="latinFrom" type="number" min="1" max="9999" step="1"></label>' +
+      '<div class="latinFilterGrid"><label>Desde <input class="latinFrom" type="number" min="1" max="9999" step="1"></label>' +
       '<label>Hasta <input class="latinTo" type="number" min="1" max="9999" step="1"></label>' +
       '<label>Paridad <select class="latinParity"><option value="todos">Todos</option><option value="pares">Pares</option><option value="impares">Impares</option></select></label></div>' +
       '<p class="small muted latinHelp"></p>';
