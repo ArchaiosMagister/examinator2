@@ -72,7 +72,8 @@
   // Una palabra puede pertenecer a varias normas. No repetirla entre los
   // cuatro apartados, aunque las etiquetas de fenómeno sean diferentes.
   P.evol = function (S) {
-    const groups = M.shuffle((M.lists.evolucion || []).filter((g) => g.palabras && g.palabras.length));
+    const eligible = M.LexicalFilters ? M.LexicalFilters.evolPool(S) : (M.lists.evolucion || []);
+    const groups = M.shuffle(eligible.filter((g) => g.palabras && g.palabras.length));
     const used = new Set();
     S.evol = [];
     for (const g of groups) {
@@ -83,21 +84,23 @@
       used.add(M.fold(w));
       if (S.evol.length === 4) break;
     }
+    return S.evol.length === 4;
   };
   P.evolOne = function (S, k) {
     const others = (S.evol || []).filter((x, j) => j !== k && x);
     const usedGroups = new Set(others.map((x) => x.g));
     const usedWords = new Set(others.map((x) => M.fold(x.w)));
     const current = S.evol[k] || {};
-    const pool = (M.lists.evolucion || [])
+    const pool = (M.LexicalFilters ? M.LexicalFilters.evolPool(S) : (M.lists.evolucion || []))
       .filter((g) => g.palabras && g.palabras.length && !usedGroups.has(g.nombre))
       .map((g) => ({ nombre: g.nombre, palabras: g.palabras.filter((w) => !usedWords.has(M.fold(w)) && M.fold(w) !== M.fold(current.w || '')) }))
       .filter((g) => g.palabras.length);
     const alternative = pool.filter((g) => g.nombre !== current.g);
     const g = M.pick(alternative.length ? alternative : pool);
-    if (!g) return;
+    if (!g) return false;
     const w = M.pick(g.palabras);
-    if (w) S.evol[k] = { g: g.nombre, w };
+    if (w) { S.evol[k] = { g: g.nombre, w }; return true; }
+    return false;
   };
 
   /* ---------- prefijos y latinismos ---------- */
@@ -113,8 +116,14 @@
   }
   P.pref = (S) => { S.pref = pickN((M.lists.prefijos || []).map(prefDisplay), 4); };
   P.prefOne = (S, k) => { const w = pickN((M.lists.prefijos || []).map(prefDisplay), 1, S.pref, k); if (w) S.pref[k] = w; };
-  P.latin = (S) => { S.latin = pickN((M.lists.latinismos || []).map(latDisplay), 4); };
-  P.latinOne = (S, k) => { const w = pickN((M.lists.latinismos || []).map(latDisplay), 1, S.latin, k); if (w) S.latin[k] = w; };
+  const latinCandidates = (S) => (M.LexicalFilters
+    ? M.LexicalFilters.latinPool(S) : (M.lists.latinismos || [])).map(latDisplay);
+  P.latin = (S) => { S.latin = pickN(latinCandidates(S), 4); return S.latin.length === 4; };
+  P.latinOne = (S, k) => {
+    const w = pickN(latinCandidates(S), 1, S.latin, k);
+    if (w) { S.latin[k] = w; return true; }
+    return false;
+  };
 
   /* ---------- referencia a partir de la cita ---------- */
   // «1.6» → «I 6»; un intervalo «1.6–1.7» → «I 6-7»
