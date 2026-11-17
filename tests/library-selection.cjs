@@ -27,7 +27,7 @@ const reader = elem(), hint = elem(), useButton = elem(), title = elem(),
   genre = elem(), search = elem(), only = elem(), jump = elem(), progress = elem(), list = elem();
 useButton.dataset.act = 'use';
 const nodes = new Map([
-  ['#lib', panel], ['.rtext', reader], ['.rsel', hint], ['[data-act=use]', useButton],
+  ['#lib', panel], ['.rtext', reader], ['#lib .rtext', reader], ['.rsel', hint], ['[data-act=use]', useButton],
   ['.rt', title], ['.lg', genre], ['.lf', search], ['.lonly', only],
   ['.rgo', jump], ['.lprog', progress], ['.llist', list]
 ]);
