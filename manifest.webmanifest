@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Examinator2 — Exámenes de Latín",
+  "short_name": "Examinator2",
+  "description": "Generación y edición de exámenes de Latín con bancos académicos incluidos para uso sin conexión.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#1d5466",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
