@@ -12,6 +12,18 @@ assert.equal(manifest.display, 'standalone');
 assert.ok(manifest.icons.some((x) => x.sizes === '512x512')); 
 assert.ok(manifest.icons.some((x) => x.sizes === '192x192' && x.src === 'icon-192.png'));
 assert.ok(fs.existsSync(path.join(root, 'icon-192.png')));
+const iconSvg = read('icono.svg');
+assert.match(iconSvg, /viewBox="0 0 512 512"/);
+assert.match(iconSvg, /fill="#075366"/); // paleta original de Examinator
+for (const [name, size] of [['icon-192.png', 192], ['icon.png', 512]]) {
+  const buf = fs.readFileSync(path.join(root, name));
+  assert.equal(buf.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', name + ': cabecera PNG');
+  assert.equal(buf.readUInt32BE(16), size, name + ': ancho');
+  assert.equal(buf.readUInt32BE(20), size, name + ': alto');
+  assert.equal(buf[24], 2, name + ': paleta PNG');
+  assert.equal(buf[25], 3, name + ': PNG indexado');
+}
+assert.match(html, /rel="apple-touch-icon" href="icon.png"/);
 const sw = read('sw.js');
 for (const file of ['index.html', 'js/datos.js', 'js/incluidos.js', 'js/bancos-datos.js',
   'js/bancos-loader.js', 'js/motor.js', 'js/shim.js', 'js/pwa.js', 'lib/jszip.min.js']) {
