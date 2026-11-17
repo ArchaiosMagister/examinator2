@@ -1,12 +1,13 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v1-bancos-20261117';
+const VERSION = 'examinator2-v2-bancos-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./icon.png",
+  "./icon-192.png",
   "./icono.svg",
   "./styles.css",
   "./fonts.css",
