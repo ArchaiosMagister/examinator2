@@ -48,7 +48,7 @@ console.log('Auditoría de originales: ' + oldPreverbs.length + ' preverbios pre
 assert.equal(additional.preverbios.items.length, 120);
 assert.equal(additional.prefijos.items.length, 286);
 assert.equal(lists.preverbios.length, 120);
-assert.equal(lists.prefijos.length, 286);
+assert.equal(lists.prefijos.length, 287); // 286 fuente + Ultrapuertos histórico
 assert.equal(lists.evolucion.length, 20);
 assert.equal(lists.latinismos.length, 87);
 assert.equal(new Set(lists.preverbios.map((x) => x.sourceId)).size, 120);
@@ -57,6 +57,11 @@ assert.deepEqual(lists.latinismos.map((x) => x.number), Array.from({ length: 87 
 assert.ok(lists.preverbios.every((row) => row.base && row.compuestos.length));
 assert.ok(lists.prefijos.every((x) => typeof x === 'string' && x.length));
 assert.ok(Object.values(previous).every((x) => typeof x === 'string'), 'Se conservan los datos previos');
+assert.equal(missingPreverbs.length, 0, 'No se pierde ningún verbo antiguo');
+assert.equal(lostDerivatives.length, 0, 'No se pierde ningún derivado preverbial antiguo');
+assert.equal(missingPrefixes.length, 0, 'No se pierde ningún prefijo antiguo');
+assert.deepEqual(Array.from(ctx.EXACADEMIC_BANKS.legado.prefijos), ['Ultrapuertos']);
+assert.ok(lists.prefijos.includes('Ultrapuertos'));
 assert.ok(!read('js/bancos-loader.js').includes('fetch('));
 assert.ok(!read('js/lexico-bancos-datos.js').includes('fetch('));
 
