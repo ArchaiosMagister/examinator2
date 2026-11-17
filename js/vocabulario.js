@@ -56,7 +56,7 @@
     const i = rows.findIndex((r) => lemma(r.lema || r.head) === k);
     const previous = i < 0 ? null : rows[i];
     const row = {
-      lema: previous ? previous.lema : String(base).split(/[,\\s(]/)[0],
+      lema: previous ? previous.lema : String(base).split(/[, (]/)[0],
       head, trad,
       formas: previous && Array.isArray(previous.formas) ? previous.formas : [],
       note: String(item.note || '').trim()
