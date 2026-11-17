@@ -69,18 +69,35 @@
   };
 
   /* ---------- evolución fonética: cuatro fenómenos distintos ---------- */
+  // Una palabra puede pertenecer a varias normas. No repetirla entre los
+  // cuatro apartados, aunque las etiquetas de fenómeno sean diferentes.
   P.evol = function (S) {
-    const gs = M.shuffle((M.lists.evolucion || []).filter((g) => g.palabras.length)).slice(0, 4);
-    S.evol = gs.map((g) => ({ g: g.nombre, w: M.pick(g.palabras) }));
+    const groups = M.shuffle((M.lists.evolucion || []).filter((g) => g.palabras && g.palabras.length));
+    const used = new Set();
+    S.evol = [];
+    for (const g of groups) {
+      const available = g.palabras.filter((w) => !used.has(M.fold(w)));
+      const w = M.pick(available);
+      if (!w) continue;
+      S.evol.push({ g: g.nombre, w });
+      used.add(M.fold(w));
+      if (S.evol.length === 4) break;
+    }
   };
   P.evolOne = function (S, k) {
-    const used = new Set(S.evol.filter((x, j) => j !== k && x).map((x) => x.g));
-    const cur = S.evol[k] || {};
-    let gs = (M.lists.evolucion || []).filter((g) => g.palabras.length && !used.has(g.nombre));
-    const others = gs.filter((g) => g.nombre !== cur.g);
-    if (others.length) gs = others;
-    const g = M.pick(gs); if (!g) return;
-    S.evol[k] = { g: g.nombre, w: M.pick(g.palabras) };
+    const others = (S.evol || []).filter((x, j) => j !== k && x);
+    const usedGroups = new Set(others.map((x) => x.g));
+    const usedWords = new Set(others.map((x) => M.fold(x.w)));
+    const current = S.evol[k] || {};
+    const pool = (M.lists.evolucion || [])
+      .filter((g) => g.palabras && g.palabras.length && !usedGroups.has(g.nombre))
+      .map((g) => ({ nombre: g.nombre, palabras: g.palabras.filter((w) => !usedWords.has(M.fold(w)) && M.fold(w) !== M.fold(current.w || '')) }))
+      .filter((g) => g.palabras.length);
+    const alternative = pool.filter((g) => g.nombre !== current.g);
+    const g = M.pick(alternative.length ? alternative : pool);
+    if (!g) return;
+    const w = M.pick(g.palabras);
+    if (w) S.evol[k] = { g: g.nombre, w };
   };
 
   /* ---------- prefijos y latinismos ---------- */
