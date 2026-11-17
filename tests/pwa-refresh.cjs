@@ -110,23 +110,24 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
   // después de completar íntegramente la descarga y no se toca IndexedDB.
   async function simulateRefresh(fail) {
     const callbacks = {};
-    const cacheData = new Map([['examinator2-v2-bancos-20261117', ['versión anterior']]]);
-    let stagedRequests = [];
+    const oldCache = 'examinator2-v2-bancos-20261117';
+    const cacheData = new Map([[oldCache, new Map([['versión anterior', true]])]]);
+    const stagedRequests = [];
+    const hits = new Map();
+    let activeFetches = 0, peakFetches = 0;
     const workerCtx = {
-      URL, Date, console,
+      URL, Date, console, setTimeout: (fn) => fn(),
       Request: class {
         constructor(url, options) { this.url = url; this.cache = options.cache; }
       },
       Response: { error() { return 'not-found'; } },
       caches: {
-        open: async (name) => ({
-          async addAll(requests) {
-            stagedRequests = requests;
-            if (fail) throw new Error('No se pudo descargar js/motor.js');
-            cacheData.set(name, requests.map((req) => req.url));
-          },
-          async put() {}
-        }),
+        open: async (name) => {
+          if (!cacheData.has(name)) cacheData.set(name, new Map());
+          return {
+            async put(url, response) { cacheData.get(name).set(url, response); }
+          };
+        },
         keys: async () => [...cacheData.keys()],
         delete: async (name) => cacheData.delete(name),
         match: async () => null
@@ -138,7 +139,22 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
         skipWaiting: async () => {},
         clients: { claim: async () => {} }
       },
-      fetch: async () => { throw new Error('Sin conexión'); }
+      fetch: async (request) => {
+        activeFetches++;
+        peakFetches = Math.max(peakFetches, activeFetches);
+        stagedRequests.push(request);
+        hits.set(request.url, (hits.get(request.url) || 0) + 1);
+        try {
+          if (fail && request.url.endsWith('/js/motor.js')) return { ok: false, status: 404 };
+          // Un fallo transitorio de Pages se debe reintentar.
+          if (!fail && request.url.endsWith('/styles.css') && hits.get(request.url) === 1) {
+            return { ok: false, status: 503 };
+          }
+          return { ok: true, status: 200 };
+        } finally {
+          activeFetches--;
+        }
+      }
     };
     vm.createContext(workerCtx);
     vm.runInContext(read('sw.js'), workerCtx, { filename: 'sw.js' });
@@ -149,18 +165,22 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
       waitUntil(promise) { task = promise; }
     });
     await task;
-    return { cacheData, answer, stagedRequests };
+    return { cacheData, answer, stagedRequests, hits, peakFetches, oldCache };
   }
   const success = await simulateRefresh(false);
   assert.equal(success.answer.ok, true);
   assert.ok(success.stagedRequests.length >= 25);
   assert.ok(success.stagedRequests.every((x) => x.cache === 'reload'));
-  assert.ok(!success.cacheData.has('examinator2-v2-bancos-20261117'));
+  assert.equal(success.peakFetches, 1, 'Evitar las peticiones simultáneas que saturan Pages');
+  assert.equal(success.hits.get('https://example.org/examinator2/styles.css'), 2, 'Reintentar HTTP 503');
+  assert.ok(!success.cacheData.has(success.oldCache));
   assert.ok([...success.cacheData.keys()].some((k) => k.includes('manual-')));
   const failure = await simulateRefresh(true);
   assert.equal(failure.answer.ok, false);
   assert.ok(failure.answer.error.includes('js/motor.js'));
-  assert.deepEqual([...failure.cacheData.keys()], ['examinator2-v2-bancos-20261117']);
+  assert.ok(failure.answer.error.includes('HTTP 404'), 'Identificar el recurso que falla');
+  assert.equal(failure.hits.get('https://example.org/examinator2/js/motor.js'), 3);
+  assert.deepEqual([...failure.cacheData.keys()], [failure.oldCache], 'La caché anterior permanece intacta');
 
   assert.ok(!read('js/pwa.js').includes('localStorage.clear('));
   assert.ok(!read('sw.js').includes('indexedDB.deleteDatabase'));
