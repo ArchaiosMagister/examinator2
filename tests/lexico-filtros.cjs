@@ -22,6 +22,17 @@ const additional = ctx.EXACADEMIC_LEXICO_SOURCE;
 const lists = Object.fromEntries(['preverbios', 'prefijos', 'evolucion', 'latinismos']
   .map((name) => [name, JSON.parse(ctx.EXDATA['/app/data/listas/' + name + '.json'])]));
 
+const oldPreverbs = JSON.parse(previous.preverbios);
+const oldPrefixes = JSON.parse(previous.prefijos);
+const simple = (s) => String(s || '').split(',')[0].trim().toLowerCase();
+const knownPreverbs = new Set(lists.preverbios.map((r) => simple(r.base)));
+const knownPrefixes = new Set(lists.prefijos.map((w) => w.toLocaleLowerCase('es')));
+const missingPreverbs = oldPreverbs.filter((row) => !knownPreverbs.has(simple(row.base)));
+const missingPrefixes = oldPrefixes.filter((w) => !knownPrefixes.has(w.toLocaleLowerCase('es')));
+console.log('Auditoría de originales: ' + oldPreverbs.length + ' preverbios previos, '
+  + oldPrefixes.length + ' prefijos previos; ausentes de la copia docente: '
+  + missingPreverbs.length + ' preverbios [' + missingPreverbs.map((x) => x.base).slice(0,10).join(' | ') + '], '
+  + missingPrefixes.length + ' prefijos [' + missingPrefixes.slice(0,12).join(' | ') + '].');
 assert.equal(additional.preverbios.items.length, 120);
 assert.equal(additional.prefijos.items.length, 286);
 assert.equal(lists.preverbios.length, 120);
