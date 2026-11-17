@@ -141,6 +141,7 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
 .lread { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
 .rhead { padding: 8px 16px; border-bottom: 1px solid var(--rule-2); display: flex; flex-direction: column; gap: 6px; }
 .rhead input { padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; }
+#lib [data-act=use].no-selection { opacity: .65; }
 .rtext { overflow-y: auto; padding: 12px 20px 60px; font-family: var(--text-font); font-size: 17px; line-height: 1.6; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .rl { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
 .rl.rh .rx { font-weight: bold; }
