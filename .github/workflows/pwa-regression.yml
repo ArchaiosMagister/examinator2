@@ -20,6 +20,8 @@ jobs:
           node --check scripts/check-deployed-assets.cjs
       - name: Regresión del motor, documentos y biblioteca
         run: node tests/regression.cjs
+      - name: Diptongos æ/œ y excepciones filológicas
+        run: node tests/vocab-ligatures.cjs
       - name: PWA y bancos académicos sin conexión
         run: node tests/pwa-banks.cjs
       - name: Filtros docentes y listas históricas

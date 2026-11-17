@@ -75,6 +75,53 @@ module.exports = (async () => {
   assert.equal(entries[0].trad, 'Galia preferente'); assert.ok(entries[0].preferred);
   assert.ok(entries[1].trad); assert.ok(!entries[1].preferred, 'Unlisted word uses existing dictionary');
   assert.equal(V.find(['Galliam'], true).trad, 'Galia preferente');
+
+  // La grafía ligada procede sólo del lematizador automático y se refleja
+  // igual en la vista previa, el PDF (HTML) y el documento de Word.
+  const poetaLookup = (await call('lookup', { word: 'poeta' }))[0];
+  const proeliumLookup = (await call('lookup', { word: 'proelium' }))[0];
+  assert.ok(poetaLookup && proeliumLookup);
+  const [poetEntry, battleEntry] = await ctx.M.vocabEntries({
+    lids: [poetaLookup.lid, proeliumLookup.lid], mode: 'modelo'
+  });
+  assert.equal(poetEntry.head, 'poeta, –æ');
+  assert.match(battleEntry.head, /^prœlĭum/);
+  const ligatedExam = {
+    texto: 'Poeta proelium narrat.', vocabItems: [
+      { head: poetEntry.head, trad: 'poeta', on: true },
+      { head: battleEntry.head, trad: 'combate', on: true }
+    ], literatura: {}, qty: 'modelo', tamano: 10.5, hueco: 2.6
+  };
+  const alphabetical = Array.from(ctx.M.Exam.vocabList({
+    vocabItems: [
+      { head: 'prœlium', on: true },
+      { head: 'poeta', on: true },
+      { head: 'aer', on: true },
+      { head: 'æquus', on: true },
+      { head: 'aetas', on: true }
+    ]
+  }), (x) => x.head);
+  assert.deepEqual(alphabetical, ['æquus', 'aer', 'aetas', 'poeta', 'prœlium'],
+    'Las ligaduras no deben romper el orden alfabético del vocabulario');
+  const ligatedHTML = ctx.M.Exam.html(ligatedExam);
+  assert.ok(ligatedHTML.includes('poeta, –æ'));
+  assert.ok(ligatedHTML.includes('prœlĭum'));
+  assert.ok(ligatedHTML.includes('Poeta proelium narrat.'), 'No cambiar el texto latino');
+  const ligatedDocx = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(ligatedExam), { base64: true });
+  const ligatedXml = await ligatedDocx.file('word/document.xml').async('string');
+  assert.ok(ligatedXml.includes('prœlĭum'));
+  assert.ok(ligatedXml.includes('poeta, –æ'));
+  assert.ok(ligatedXml.includes('Poeta proelium narrat.'));
+
+  // Una preferencia o corrección docente mantiene EXACTAMENTE lo escrito.
+  ctx.M.store.set('vocabulario', V.parse('poeta, -ae\tpoeta del profesor'));
+  ctx.M.S.tokens = [{ sel: { lid: poetaLookup.lid }, lplain: 'poeta', lemma: poetaLookup.lemma }];
+  const personal = await ctx.M.vocabEntries({ lids: [poetaLookup.lid], mode: 'modelo' });
+  assert.equal(personal[0].head, 'poeta, -ae');
+  assert.equal(personal[0].trad, 'poeta del profesor');
+  ctx.M.store.set('vocabulario', custom);
+  ctx.M.S.tokens = tokens;
+
   assert.throws(() => V.parse('sin traducción'));
   assert.throws(() => V.parse('amo\tamar\namo\tquerer'));
   const S = { texto: 'Gallia est omnis divisa in partes tres.', tokens, fuente: 'Palatino', tamano: 10.5, espacioPreguntas: 0, hueco: 0,
