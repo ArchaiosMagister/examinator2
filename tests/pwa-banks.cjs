@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const zlib = require('node:zlib');
 const root = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const html = read('index.html');
@@ -12,6 +13,28 @@ assert.equal(manifest.display, 'standalone');
 assert.ok(manifest.icons.some((x) => x.sizes === '512x512')); 
 assert.ok(manifest.icons.some((x) => x.sizes === '192x192' && x.src === 'icon-192.png'));
 assert.ok(fs.existsSync(path.join(root, 'icon-192.png')));
+const iconSvg = read('icono.svg');
+assert.match(iconSvg, /viewBox="0 0 512 512"/);
+assert.match(iconSvg, /fill="#075366"/); // paleta original de Examinator
+for (const [name, size] of [['icon-192.png', 192], ['icon.png', 512]]) {
+  const buf = fs.readFileSync(path.join(root, name));
+  assert.equal(buf.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', name + ': cabecera PNG');
+  assert.equal(buf.readUInt32BE(16), size, name + ': ancho');
+  assert.equal(buf.readUInt32BE(20), size, name + ': alto');
+  assert.equal(buf[24], 2, name + ': paleta PNG');
+  assert.equal(buf[25], 3, name + ': PNG indexado');
+  let position = 8;
+  const idat = [];
+  while (position < buf.length) {
+    const length = buf.readUInt32BE(position);
+    const type = buf.subarray(position + 4, position + 8).toString('ascii');
+    if (type === 'IDAT') idat.push(buf.subarray(position + 8, position + 8 + length));
+    position += length + 12;
+  }
+  assert.ok(idat.length, name + ': datos IDAT');
+  assert.equal(zlib.inflateSync(Buffer.concat(idat)).length, size * (Math.ceil(size / 4) + 1), name + ': zlib PNG íntegro');
+}
+assert.match(html, /rel="apple-touch-icon" href="icon.png"/);
 const sw = read('sw.js');
 for (const file of ['index.html', 'js/datos.js', 'js/incluidos.js', 'js/bancos-datos.js',
   'js/bancos-loader.js', 'js/motor.js', 'js/shim.js', 'js/pwa.js', 'lib/jszip.min.js']) {

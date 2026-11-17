@@ -52,7 +52,7 @@
   function untilActivated(worker) {
     if (worker.state === 'activated') return Promise.resolve();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => finish(new Error('La nueva versión no pudo activarse.')), 25000);
+      const timer = setTimeout(() => finish(new Error('La nueva versión no pudo activarse.')), 120000);
       const check = () => {
         if (worker.state === 'activated') finish();
         if (worker.state === 'redundant') finish(new Error('Falló la instalación de la nueva versión.'));
@@ -70,7 +70,7 @@
   function refreshOffline(worker) {
     return new Promise((resolve, reject) => {
       const channel = new MessageChannel();
-      const timer = setTimeout(() => finish(new Error('La actualización de los archivos ha agotado el tiempo disponible.')), 60000);
+      const timer = setTimeout(() => finish(new Error('La actualización de los archivos ha agotado el tiempo disponible.')), 150000);
       function finish(error) {
         clearTimeout(timer);
         channel.port1.close();

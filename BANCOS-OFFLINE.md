@@ -4,7 +4,7 @@ Examinator2 se instala desde su URL de GitHub Pages (HTTPS), mediante el botón 
 
 ## Actualización manual y espacio de respuesta
 
-El botón **Actualizar** de la cabecera busca la nueva versión del service worker y vuelve a descargar **todos** los recursos incluidos de la webapp, incluso si el service worker no ha cambiado. Prepara una caché temporal y reemplaza la anterior solo después de descargarla íntegra. Si el dispositivo está sin conexión o falta algún recurso, conserva la copia anterior y muestra un aviso. Antes de recargar, guarda de forma síncrona el examen abierto en el almacenamiento local; nunca borra las listas personalizadas, los textos de Perseus descargados ni los ajustes.
+El botón **Actualizar** de la cabecera busca la nueva versión del service worker y vuelve a descargar **todos** los recursos incluidos de la webapp, incluso si el service worker no ha cambiado. Descarga cada archivo por separado para evitar la saturación de GitHub Pages y reintenta los errores temporales. Prepara una caché temporal y reemplaza la anterior solo después de descargarla íntegra. Si falla definitivamente, indica qué archivo y qué código HTTP impidieron la operación. Si el dispositivo está sin conexión o falta algún recurso, conserva la copia anterior y muestra un aviso. Antes de recargar, guarda de forma síncrona el examen abierto en el almacenamiento local; nunca borra las listas personalizadas, los textos de Perseus descargados ni los ajustes.
 
 En **Ajustes → Espacio entre los apartados de la pregunta 4 (cm)** se admite una cantidad precisa entre 0 y 10 cm, con controles de 0,05 cm. El valor predeterminado sigue siendo **2,6 cm**; los exámenes y preferencias antiguas, incluidos los valores equivalentes a «pequeño» (1,8 cm) y «grande» (3,5 cm), se respetan sin migración. Se usa el mismo valor en la vista previa, en el PDF y en Word (con conversión a twips).
 
@@ -19,3 +19,7 @@ En **Ajustes → Espacio entre los apartados de la pregunta 4 (cm)** se admite u
 Para incorporar cambios docentes futuros, obtener una copia local revisada del repositorio y ejecutar `node scripts/sync-bancos.mjs ../GeneradorExamenes`. Revisar diferencias filológicas, actualizar las referencias de los blobs de origen del encabezado, ejecutar `node tests/regression.cjs` y `node tests/pwa-banks.cjs`, aumentar la versión de caché en `sw.js` y abrir una PR. No hay sincronización automática externa que pueda alterar exámenes.
 
 **Alcance filológico:** `APTO_PROPUESTO` significa elegible didácticamente, no certificación lexicográfica definitiva. Las adaptaciones cultas están distinguidas en el banco de origen mediante `tipoTransmision`; la pregunta de Examinator2 mantiene su presentación habitual (étimo y fenómeno), sin simular una evolución popular.
+
+## Icono
+
+El icono mantiene la identidad del diseño anterior: fondo verde azulado, hoja clara, tres líneas y monograma «II». Se suministran la versión vectorial y los PNG locales de 192 y 512 píxeles. Según el navegador y el sistema operativo, puede ser necesario quitar y volver a instalar el acceso directo para que se renueve el icono de la pantalla de inicio.
