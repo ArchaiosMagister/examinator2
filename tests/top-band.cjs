@@ -27,7 +27,7 @@ for(const id of topButtonIds) {
 }
 assert.equal((html.match(/<header>/g)||[]).length, 1, 'Cabecera sin duplicar');
 assert.equal((html.match(/<\/header>/g)||[]).length, 1, 'Cabecera intacta');
-assert.match(sw, /examinator2-v7-franja-superior-20261117/);
+assert.match(sw, /examinator2-v8-vocab-ligaduras-franja-ipad-20261117/);
 assert.match(sw, /"\.\/styles\.css"/);
 assert.equal(48 + pixels, 58, 'La biblioteca empieza bajo la cabecera y la banda');
 console.log('OK: banda verde de ' + pixels + ' px, encabezado íntegro, biblioteca alineada y PWA versionada.');

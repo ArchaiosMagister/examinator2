@@ -209,6 +209,50 @@ function tokenInfo({ lid, morpho }) {
   return { cat: X.catOf(lem.pos, morpho), rows: preverbRows(lem), sum: X.plain(X.headOf(lem)) === 'sum', lplain: X.plain(X.headOf(lem)).replace(/\d+$/, '') };
 }
 
+/* ---------- grafía de diptongos del vocabulario ----------
+ * La forma sin cantidades puede ocultar si -ae-/-oe- era diptongo o hiato.
+ * Usamos el enunciado original con cantidades del mismo lema Collatinus:
+ *  prōelium -> prœlium; pŏēta -> poeta; cŏĕo -> coeo.
+ * No se aplica una sustitución global ni se modifica el texto o las listas
+ * que haya escrito el profesor. Si no hay correspondencia exacta, no tocar.
+ */
+function vocabLigatures(display, full, lemma) {
+  const clusters = (s) => {
+    const result = [];
+    for (const ch of String(s || '').normalize('NFD')) {
+      if (/[\u0300-\u036f]/u.test(ch) && result.length) result[result.length - 1] += ch;
+      else result.push(ch);
+    }
+    return result;
+  };
+  const dest = clusters(display), raw = clusters(full);
+  const base = (part) => (part || '').normalize('NFD').replace(/[\u0300-\u036f]/gu, '').toLowerCase();
+  if (dest.length !== raw.length || dest.some((ch, i) => base(ch) !== base(raw[i]))) return display;
+  const lex = X.plain(lemma || '').replace(/\d+$/, '').toLowerCase();
+  const isLetter = (ch) => /[a-z]/i.test(base(ch));
+  const out = [];
+  for (let i = 0; i < dest.length; i++) {
+    const first = base(dest[i]), second = base(dest[i + 1]);
+    const pair = first + second;
+    if (pair !== 'ae' && pair !== 'oe') { out.push(dest[i]); continue; }
+    const previous = base(dest[i - 1]), following = base(dest[i + 2]);
+    const word = dest.slice(i, i + 4).map(base).join('');
+    const rawSecondMarked = /[\u0304\u0306\u0308]/u.test(raw[i + 1]);
+    const rawFirstMarked = /[\u0304]/u.test(raw[i]);
+    const pronounQuae = pair === 'ae' && previous === 'u' && base(dest[i - 2]) === 'q' && !isLetter(dest[i + 2]);
+    const aesBronze = pair === 'ae' && lex === 'aes' &&
+      !isLetter(dest[i - 1]) && following === 's' && !isLetter(dest[i + 3]);
+    // Un e marcado es hiato; aes, aeris constituye una excepción documentada
+    // a la codificación de Collatinus ("ăēs"). No corregimos otras dudas.
+    if ((!rawSecondMarked && (rawFirstMarked || pronounQuae)) || aesBronze) {
+      const upper = dest[i] && dest[i][0] !== dest[i][0].toLowerCase();
+      out.push(pair === 'ae' ? (upper ? 'Æ' : 'æ') : (upper ? 'Œ' : 'œ'));
+      i++;
+    } else out.push(dest[i]);
+  }
+  return out.join('').normalize('NFC');
+}
+
 /* ---------- vocabulario ---------- */
 function vocabEntries({ lids, mode }) {
   L();
@@ -217,7 +261,9 @@ function vocabEntries({ lids, mode }) {
     const lem = byUid.get(lid);
     if (!lem) continue;
     const g = X.shortGloss(L().traduction(lem).text || lem.trad || '');
-    out.push({ lid, head: X.enunciado(lem, mode || 'modelo'), trad: g.trad, note: g.note, sort: X.plain(X.headOf(lem)), proper: /^[A-ZĀĂĒĔĪĬŌŎŪŬȲЎ]/.test(X.headOf(lem)) });
+    const head = X.enunciado(lem, mode || 'modelo');
+    const full = X.enunciado(lem, 'todas'); // marcas originales: prueba de hiato frente a diptongo
+    out.push({ lid, head: vocabLigatures(head, full, X.headOf(lem)), trad: g.trad, note: g.note, sort: X.plain(X.headOf(lem)), proper: /^[A-ZĀĂĒĔĪĬŌŎŪŬȲЎ]/.test(X.headOf(lem)) });
   }
   return out;
 }

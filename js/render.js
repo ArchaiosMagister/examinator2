@@ -31,7 +31,10 @@
   E.vocabList = function (S) {
     const out = (S.vocabItems || []).filter((v) => v.on);
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
-    return out.slice().sort((a, b) => coll.compare(M.fold(a.head).replace(/^[^a-z]+/, ''), M.fold(b.head).replace(/^[^a-z]+/, '')));
+    // Æ/Œ son variantes tipográficas de ae/oe; conservar su posición
+    // alfabética (sin perder el primer carácter por el filtro [a-z]).
+    const sortKey = (head) => M.fold(head).replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/^[^a-z]+/, '');
+    return out.slice().sort((a, b) => coll.compare(sortKey(a.head), sortKey(b.head)));
   };
   const listY = (arr) => { const a = arr.filter((x) => x && x.trim()); return a.length <= 1 ? a : [a.slice(0, -1), a[a.length - 1]]; };
   // Frases de la pregunta 4: [{ t, i }]
