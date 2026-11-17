@@ -92,8 +92,8 @@ const ctx={
 ctx.window.M=ctx.M;
 vm.createContext(ctx);
 vm.runInContext(mobile,ctx,{filename:'js/mobile.js'});
-assert.equal(docEvents.DOMContentLoaded.length,1);
-docEvents.DOMContentLoaded[0]();
+assert.equal(winEvents.DOMContentLoaded.length,1);
+winEvents.DOMContentLoaded[0]();
 assert.equal(body.dataset.mobileView,'editor');
 assert.equal(editorButton.attrs['aria-pressed'],'true');
 menu.click();
