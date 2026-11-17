@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v2-bancos-20261117';
+const VERSION = 'examinator2-v3-actualizacion-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -53,6 +53,39 @@ self.addEventListener('activate', (event) => {
     await self.clients.claim();
   })());
 });
+// Refresco manual transaccional: todos los recursos se descargan en una
+// caché provisional, sin tocar la anterior si falla una sola descarga.
+// No afecta a IndexedDB ni a localStorage (exámenes, listas, preferencias).
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  if (event.data.type === 'SKIP_WAITING') {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
+  if (event.data.type !== 'REFRESH_OFFLINE') return;
+  const replyPort = event.ports && event.ports[0];
+  event.waitUntil((async () => {
+    const stagingName = PREFIX + 'manual-' + Date.now();
+    try {
+      const cache = await caches.open(stagingName);
+      const requests = PRECACHE.map((p) => new Request(
+        new URL(p, self.registration.scope).href, { cache: 'reload' }
+      ));
+      await cache.addAll(requests);
+      const existing = await caches.keys();
+      await Promise.all(existing
+        .filter((name) => name.startsWith(PREFIX) && name !== stagingName)
+        .map((name) => caches.delete(name)));
+      if (replyPort) replyPort.postMessage({ ok: true, count: PRECACHE.length });
+    } catch (error) {
+      await caches.delete(stagingName);
+      if (replyPort) replyPort.postMessage({
+        ok: false, error: String(error && error.message || error)
+      });
+    }
+  })());
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
