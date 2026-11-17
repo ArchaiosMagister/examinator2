@@ -59,6 +59,9 @@ module.exports = (async () => {
   assert.equal(first.length, 116); assert.match(first[0].t, /Haec tua Penelope/);
   const tokens = await call('analyze', { text: 'Gallia est omnis divisa in partes tres.' });
   assert.ok(tokens.every((t) => t.sel));
+  const verbTokens = await call('analyze', { text: 'Capio et ago.' });
+  assert.ok(verbTokens.some((t) => t.sel && t.cat === 'v' && Array.isArray(t.rows) && t.rows.length),
+    'Los verbos del texto siguen vinculados al banco de modificación preverbial');
   const storage = new Map();
   ctx.localStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) };
   load('js/util.js'); load('js/vocabulario.js'); load('js/render.js'); load('lib/jszip.min.js');
@@ -79,6 +82,9 @@ module.exports = (async () => {
   const css = ctx.M.Exam.pageCss(S);
   assert.match(css, /font-size: 10.5pt/); assert.match(css, /margin: 0 0 0cm/); assert.match(css, /margin-bottom: 0cm/);
   const html = ctx.M.Exam.html(S); assert.match(html, /At regina gravi\nvolnus alit/); assert.match(html, /litTranslation"><\/div>/);
+  const sameOutput = ctx.M.Exam.html({ ...S, evolNormas: ['N07'],
+    latinFilter: { desde: 20, hasta: 50, paridad: 'impares', activo: true } });
+  assert.equal(sameOutput, html, 'Los filtros del sorteo nunca modifican el documento exportado');
   assert.ok(ctx.M.Exam.questionList({ documento: 'repaso' }).every((q) => !/\(\d+p/.test(q)));
   const zip = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(S), { base64: true });
   const styles = await zip.file('word/styles.xml').async('string');
