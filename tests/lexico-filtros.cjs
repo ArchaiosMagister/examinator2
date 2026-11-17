@@ -29,9 +29,11 @@ const knownPreverbs = new Set(lists.preverbios.map((r) => simple(r.base)));
 const knownPrefixes = new Set(lists.prefijos.map((w) => w.toLocaleLowerCase('es')));
 const missingPreverbs = oldPreverbs.filter((row) => !knownPreverbs.has(simple(row.base)));
 const missingPrefixes = oldPrefixes.filter((w) => !knownPrefixes.has(w.toLocaleLowerCase('es')));
-const newByBase = new Map(lists.preverbios.map((row) => [simple(row.base), row]));
+const newByBase = new Map(lists.preverbios.map((row) => [row.base, row]));
+const lostBaseRows = oldPreverbs.filter((row) => !newByBase.has(row.base));
+console.log('Verbos no coincidentes por enunciado completo: ' + lostBaseRows.length + ' [' + lostBaseRows.map((r) => r.base).join(' | ') + '].');
 const lostDerivatives = oldPreverbs.flatMap((row) => {
-  const target = newByBase.get(simple(row.base));
+  const target = newByBase.get(row.base);
   const targetSet = new Set((target?.compuestos || []).map((x) => x.toLocaleLowerCase('es')));
   return row.compuestos.filter((x) => !targetSet.has(x.toLocaleLowerCase('es')))
     .map((x) => simple(row.base) + ': ' + x);
