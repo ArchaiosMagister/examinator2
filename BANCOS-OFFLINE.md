@@ -15,7 +15,8 @@ En **Ajustes → Espacio entre los apartados de la pregunta 4 (cm)** se admite u
 - Ambos se empaquetan en `js/bancos-datos.js` y se aplican como listas originales mediante `js/bancos-loader.js`. No se consulta GeneradorExamenes, ninguna API ni un CDN en tiempo de ejecución.
 - Las listas personales guardadas por el usuario conservan prioridad: no se sobrescriben. **Restaurar la lista original** recupera la copia nueva de Examinator2.
 - El banco de modificación preverbial añade **120 fichas** de verbos simples y derivados documentados, adaptadas al formato `base / compuestos` del motor de Examinator2. El motor sigue seleccionando únicamente verbos reconocidos en el texto latino; no se proponen derivados por conjetura.
-- Los prefijos incorporan **286 entradas** del repertorio docente. El significado/prefijo orientativo y sus metadatos están disponibles en la copia local para revisión, pero el examen conserva su enunciado y no incorpora soluciones.
+- Los prefijos incorporan **286 entradas** del repertorio docente y conservan además **«Ultrapuertos»** como entrada preexistente de Examinator2 (287 en total). El significado/prefijo orientativo y sus metadatos están disponibles en la copia local para revisión, pero el examen conserva su enunciado y no incorpora soluciones.
+- La adaptación preserva asimismo las palabras y los derivados que estuvieran en la antigua lista de fábrica, sin atribuirlos falsamente a GeneradorExamenes; los metadatos de procedencia quedan diferenciados en `EXACADEMIC_BANKS.legado` y `derivadosLegado`.
 - Las cuatro listas de fábrica se preparan en `js/bancos-loader.js`. Las listas propias guardadas en IndexedDB/localStorage tienen prioridad y no se reemplazan automáticamente. `Restaurar la lista original` recupera el repertorio docente actualizado.
 
 ## Selección de normas fonéticas y latinismos
