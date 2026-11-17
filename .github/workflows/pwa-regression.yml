@@ -16,6 +16,8 @@ jobs:
         run: |
           for file in js/*.js; do node --check "$file"; done
           node --check sw.js
+          node --check scripts/sync-bancos.mjs
+          node --check scripts/check-deployed-assets.cjs
       - name: Regresión del motor, documentos y biblioteca
         run: node tests/regression.cjs
       - name: PWA y bancos académicos sin conexión
