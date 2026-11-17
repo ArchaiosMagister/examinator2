@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v6-ipad-seleccion-20261117';
+const VERSION = 'examinator2-v7-franja-superior-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
