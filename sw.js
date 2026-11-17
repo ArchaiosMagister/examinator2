@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v11-vocab-correcciones-20261117';
+const VERSION = 'examinator2-v12-iphone-responsive-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -34,6 +34,7 @@ const PRECACHE = [
   "./js/propose.js",
   "./js/exam.js",
   "./js/library.js",
+  "./js/mobile.js",
   "./js/lists.js",
   "./js/start.js",
   "./js/pwa.js"
