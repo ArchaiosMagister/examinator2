@@ -227,6 +227,9 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
   body[data-mobile-view="preview"] #editor { display: none; }
   body[data-mobile-view="preview"] #preview { display: block; }
   .grid2, .grid3 { grid-template-columns: minmax(0,1fr); }
+  /* Evitar el zoom automático al enfocar inputs de 14px en Safari iOS. */
+  .card input, .card textarea, .card select, .lfil input, .lfil select,
+  .rhead input, .modal input, .modal textarea, .modal select { font-size: 16px; }
   .row, .seg, .qrow, .srow { min-width: 0; }
   .seg { max-width: 100%; }
   .seg button { min-width: 0; white-space: normal; }
