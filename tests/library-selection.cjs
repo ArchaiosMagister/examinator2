@@ -152,7 +152,7 @@ async function clickUse() {
   assert.equal(useButton.disabled, true);
 
   // Selección nativa de iPad: al tocar el botón el Range se contrae.
-  select(0, 1, 1, 13);
+  select(0, 1, 1, 14);
   dispatchSelectionChange();
   assert.equal(useButton.disabled, false);
   assert.match(hint.textContent, /Selección: 1\.1–1\.2/);
