@@ -345,19 +345,21 @@
   function openEvolFilters() {
     const F = M.LexicalFilters, S = M.S;
     const chosen = new Set(F.normasSeleccionadas(S));
+    let soloPatrimoniales = S.evolSoloPatrimoniales === true;
     const html = '<p class="small muted">Se eligen cuatro palabras de cuatro fenómenos diferentes. Cada étimo debe respetar todas las normas que tenga registradas.</p>' +
       '<div class="row" style="margin-bottom:8px"><button class="tbtn sm" data-norm="all">Todas</button><button class="tbtn sm" data-norm="none">Ninguna</button><span class="small muted normCount"></span></div>' +
       '<div class="normGrid">' + F.normas.map((n) => '<label class="normOption"><input type="checkbox" data-norma="' +
-        esc(n.id) + '"> <span>' + esc(n.id + ' · ' + n.nombre) + '</span></label>').join('') + '</div>';
+        esc(n.id) + '"> <span>' + esc(n.id + ' · ' + n.nombre) + '</span></label>').join('') + '</div>' +
+      '<label class="normPatrimonial"><input class="onlyPatrimonial" type="checkbox"> Sólo evoluciones patrimoniales <span class="muted small">(excluye adaptaciones cultas, voces regionales y fichas sin transmisión acreditada)</span></label>';
     const modal = M.modal('Seleccionar normas fonéticas', html, [
       { label: 'Cancelar' },
       { label: 'Aplicar', primary: true, onclick: () => {
-        const test = Object.assign({}, S, { evolNormas: [...chosen], evol: [] });
+        const test = Object.assign({}, S, { evolNormas: [...chosen], evolSoloPatrimoniales: soloPatrimoniales, evol: [] });
         if (!P.evol(test)) {
           M.toast('No hay cuatro fenómenos distintos con palabras compatibles. Amplía la selección de normas.', 6500);
           return false;
         }
-        S.evolNormas = [...chosen]; S.evol = test.evol;
+        S.evolNormas = [...chosen]; S.evolSoloPatrimoniales = soloPatrimoniales; S.evol = test.evol;
         renderQ4(); changed();
       } }
     ], { width: '610px' });
@@ -365,9 +367,11 @@
     const paint = () => {
       $('[data-norma]', body).forEach((inp) => { inp.checked = chosen.has(inp.dataset.norma); });
       $('.normCount', body).textContent = chosen.size + ' de ' + F.normas.length;
+      $('.onlyPatrimonial', body).checked = soloPatrimoniales;
     };
     body.addEventListener('change', (event) => {
       const input = event.target;
+      if (input.classList.contains('onlyPatrimonial')) { soloPatrimoniales = input.checked; return; }
       if (!input.dataset.norma) return;
       if (input.checked) chosen.add(input.dataset.norma); else chosen.delete(input.dataset.norma);
       paint();
@@ -429,7 +433,8 @@
     const nPrev = P.prevCandidates(S).length;
     const F = M.LexicalFilters;
     const selected = F ? F.normasSeleccionadas(S).size : 20;
-    const evolStatus = selected + '/20 normas';
+    const evolStatus = selected + '/' + (F ? F.normas.length : 20) + ' normas' +
+      (S.evolSoloPatrimoniales ? ' · patrimoniales' : '');
     const lf = S.latinFilter;
     const latinStatus = lf && lf.activo
       ? esc(lf.desde + '–' + lf.hasta + ' · ' + (lf.paridad || 'todos'))
