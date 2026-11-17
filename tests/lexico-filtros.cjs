@@ -111,6 +111,15 @@ for (let i = 0; i < 4; i++) {
   assert.equal(new Set(filtered.evol.map((x) => F.key(x.w))).size, 4);
   assert.equal(new Set(filtered.evol.map((x) => x.g)).size, 4);
 }
+// Las adaptaciones cultas no se confunden con las transmisiones patrimoniales.
+const patrimonial = { evolSoloPatrimoniales: true, evol: [] };
+assert.equal(P.evol(patrimonial), true, 'El banco debe disponer de cuatro normas patrimoniales');
+for (const item of patrimonial.evol) {
+  const id = byName.get(item.g);
+  assert.ok(source.fonetica.items.some((row) =>
+    F.key(row.latin) === F.key(item.w) && row.normas.includes(id) &&
+    row.tipoTransmision === 'PATRIMONIAL'), 'No etiquetar como patrimonial una voz culta');
+}
 const insufficient = { evolNormas: ['N01', 'N07', 'N17'], evol: [] };
 assert.equal(P.evol(insufficient), false, 'Tres normas no pueden producir cuatro fenómenos distintos');
 
@@ -119,6 +128,7 @@ assert.equal(P.evol(insufficient), false, 'Tres normas no pueden producir cuatro
 M.lists.evolucion[0].palabras.push('palabrapersonalinventada');
 assert.ok(F.evolPool({}).some((g) => g.palabras.includes('palabrapersonalinventada')));
 assert.ok(!F.evolPool(filtered).some((g) => g.palabras.includes('palabrapersonalinventada')));
+assert.ok(!F.evolPool(patrimonial).some((g) => g.palabras.includes('palabrapersonalinventada')));
 M.lists.evolucion[0].palabras.pop();
 
 // Numeración histórica y selección combinada intervalo/paridad.
@@ -181,4 +191,4 @@ assert.ok(html.indexOf('js/lexico-filtros.js') < html.indexOf('js/propose.js'));
 assert.ok(!sw.includes('raw.githubusercontent.com'));
 assert.match(read('js/exam.js'), /data-act="evolFilter"/);
 assert.match(read('js/exam.js'), /data-act="latinFilter"/);
-console.log('OK: 120 preverbios, 286 prefijos, 655 étimos, 87 latinismos, normas, intervalos, paridad y compatibilidad.');
+console.log('OK: 120 preverbios, 286 prefijos de origen y 1 legado, 655 étimos, 87 latinismos, normas, patrimonio, intervalos, paridad y compatibilidad.');
