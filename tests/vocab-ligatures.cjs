@@ -82,10 +82,11 @@ ctx.EXREADY=Promise.resolve();load('js/motor.js');
   assert.match((await entry('aeris','ninguna','aes')).head,/^æs, æris$/);
   assert.match((await entry('aeris','ninguna','aer')).head,/^aer, –os$/);
 
+  const stripQuantities = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   for(const mode of ['modelo','todas','largas','ninguna']){
     const poet=(await entry('poeta',mode)).head;
     const battle=(await entry('proelium',mode)).head;
-    assert.match(poet,/^p.*o.*e.*ta, –æ$/,mode+': poeta no debe adquirir œ');
+    assert.equal(stripQuantities(poet), 'poeta, –æ', mode+': respetar hiato y genitivo');
     assert.ok(!poet.includes('œ'));
     assert.match(battle,/^prœl/,mode+': prœlium siempre debe llevar œ');
     assert.ok(!battle.includes('proel'));
