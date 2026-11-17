@@ -146,15 +146,18 @@ async function clickUse() {
 (async () => {
   await ctx.M.openLibrary();
   assert.ok(panel.dataset.built, 'Biblioteca construida');
-  assert.equal(useButton.disabled, true);
+  assert.equal(useButton.disabled, false, 'El botón debe ser tocable antes de selectionchange');
+  assert.ok(useButton.classList.contains('no-selection'));
   await clickRow(0);
   assert.equal(reader.children.length, 3);
-  assert.equal(useButton.disabled, true);
+  assert.equal(useButton.disabled, false);
+  assert.ok(useButton.classList.contains('no-selection'));
 
   // Selección nativa de iPad: al tocar el botón el Range se contrae.
   select(0, 1, 1, 14);
   dispatchSelectionChange();
   assert.equal(useButton.disabled, false);
+  assert.ok(!useButton.classList.contains('no-selection'));
   assert.match(hint.textContent, /Selección: 1\.1–1\.2/);
   for (const eventName of ['pointerdown', 'touchstart']) {
     assert.ok(useButton.listeners[eventName].length, eventName + ' captura antes de enfocar el botón');
@@ -177,7 +180,8 @@ async function clickUse() {
   dispatchSelectionChange();
   assert.equal(useButton.disabled, false);
   await clickRow(1);
-  assert.equal(useButton.disabled, true, 'Selección obsoleta invalidada al cambiar de obra');
+  assert.equal(useButton.disabled, false, 'Botón sigue respondiendo en iPad');
+  assert.ok(useButton.classList.contains('no-selection'), 'Selección obsoleta invalidada al cambiar de obra');
   collapse();
   await clickUse();
   assert.equal(used.length, 1, 'Nunca insertar fragmentos de una obra anterior');
@@ -185,10 +189,23 @@ async function clickUse() {
 
   // En iOS no siempre hay evento selectionchange hasta después de touchend.
   select(0, 1, 0, 8);
-  assert.equal(useButton.disabled, true);
+  assert.ok(useButton.classList.contains('no-selection'));
   reader.listeners.touchend[0]();
   await new Promise((resolve) => setTimeout(resolve, 140));
-  assert.equal(useButton.disabled, false, 'touchend captura la selección diferida');
+  assert.ok(!useButton.classList.contains('no-selection'), 'touchend captura la selección diferida');
+
+  // Safari también puede no emitir selectionchange antes del toque en «Usar».
+  // El botón NO debe estar disabled y el propio touchstart salva el fragmento.
+  await ctx.M.openLibrary();
+  await clickRow(0);
+  select(0, 0, 0, 6);
+  assert.ok(useButton.classList.contains('no-selection'));
+  useButton.listeners.touchstart[0]();
+  assert.ok(!useButton.classList.contains('no-selection'));
+  collapse(); dispatchSelectionChange();
+  await clickUse();
+  assert.equal(used.length, 2, 'Añadir en iPad aunque no llegue selectionchange');
+  assert.equal(used[1].text, 'Gallia');
 
   // La misma corrección debe funcionar en el selector de texto literario.
   await ctx.M.openLibrary('literatura');
@@ -205,5 +222,6 @@ async function clickUse() {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   assert.match(css, /\.rtext \{[^}]*-webkit-user-select: text;/);
   assert.match(css, /\.rtext \.rx \{[^}]*user-select: text;/);
+  assert.match(css, /\[data-act=use\]\.no-selection \{[^}]*opacity:/);
   console.log('OK: selección en iPad, pérdida de foco, touchend, cambio de obra y texto literario.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
