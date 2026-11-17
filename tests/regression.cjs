@@ -31,7 +31,7 @@ module.exports = (async () => {
   });
   const academic = await call('lists');
   assert.equal(academic.preverbios.length, 120);
-  assert.equal(academic.prefijos.length, 286);
+  assert.equal(academic.prefijos.length, 287); // 286 fuente + Ultrapuertos histórico
   assert.equal(academic.evolucion.length, 20);
   assert.equal(academic.latinismos.length, 87);
   // Las listas guardadas por el profesor prevalecen sobre las de fábrica.
