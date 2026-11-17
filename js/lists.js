@@ -52,6 +52,8 @@
     }
     return lines;
   };
+  // Utilidad de formato pura, también usada por las pruebas de compatibilidad.
+  M.ListFormat = { toText, fromText };
   M.openLists = function () {
     let cur = 'preverbios';
     const html = `<div class="seg ltabs">${Object.keys(INFO).map((k) => `<button data-n="${k}">${INFO[k].t}</button>`).join('')}</div>
