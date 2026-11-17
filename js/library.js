@@ -189,7 +189,7 @@
     const s = window.getSelection(); if (!s || s.isCollapsed || !s.rangeCount) return null;
     const rt = $('#lib .rtext'); const rg = s.getRangeAt(0);
     if (!rt.contains(rg.commonAncestorContainer)) return null;
-    const lines = $('.rl', rt).filter((d) => {
+    const lines = $$('.rl', rt).filter((d) => {
       try {
         return typeof rg.intersectsNode === 'function' ? rg.intersectsNode(d) : s.containsNode(d, true);
       } catch (_) { return false; }
