@@ -172,6 +172,7 @@
           <label class="inl">Cantidades <select class="qty">${QTY.map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></label>
         </div>
         <div class="vhint small muted"></div>
+        <p class="vsaveHint small muted">«Guardar» conserva el enunciado, el significado y la aclaración para próximos exámenes en este dispositivo.</p>
         <div class="vlist"></div>
         <div class="row" style="margin-top:6px"><button class="tbtn" data-act="vadd">Añadir una entrada a mano</button> <button class="tbtn" data-act="vall">Marcar todas</button> <button class="tbtn" data-act="vnone">Desmarcar todas</button></div>
       </div>
@@ -254,6 +255,20 @@
     if (act === 'vadd') { S.vocabItems.push({ manual: true, head: '', trad: '', note: '', on: true }); renderVocab(); changed(); const ins = $$('.vlist .vh', $('#editor')); if (ins.length) ins[ins.length - 1].focus(); }
     if (act === 'vall' || act === 'vnone') { for (const v of S.vocabItems) v.on = act === 'vall'; renderVocab(); renderWords(); changed(); }
     if (act === 'vdel') { const k = +b.dataset.k; S.vocabItems.splice(k, 1); renderVocab(); changed(); }
+    if (act === 'vsave') {
+      const v = S.vocabItems[+b.dataset.k];
+      if (!v) return;
+      try {
+        M.Vocabulary.saveCorrection(v);
+        v.preferred = true;
+        v.eHead = false; v.eTrad = false; v.eNote = false;
+        renderVocab(); changed();
+        M.toast('Corrección guardada para futuros exámenes en este dispositivo.');
+      } catch (error) {
+        M.toast('No se pudo guardar la corrección: ' + error.message, 6000);
+      }
+      return;
+    }
     if (act === 'vreset') {
       const v = S.vocabItems[+b.dataset.k]; if (!v) return;
       if (v.customWord) { const entry = M.Vocabulary.find([v.customWord]); if (entry) Object.assign(v, { head: entry.head, trad: entry.trad, note: entry.note }); renderVocab(); changed(); return; }
@@ -486,7 +501,8 @@
       <input type="text" class="vh" value="${esc(v.head)}" placeholder="enunciado">
       <input type="text" class="vt" value="${esc(v.trad)}" placeholder="traducción">
       <input type="text" class="vn" value="${esc(v.note)}" placeholder="aclaración (opcional)">
-      ${v.manual ? `<button class="xbtn" data-act="vdel" data-k="${k}" title="Quitar">×</button>` : `<button class="xbtn" data-act="vreset" data-k="${k}" title="Volver a la entrada del diccionario">↺</button>`}
+      <button class="tbtn sm vsave ${v.preferred && !v.eHead && !v.eTrad && !v.eNote ? 'saved' : ''}" data-act="vsave" data-k="${k}" title="Guardar corrección para próximos exámenes en este dispositivo" aria-label="Guardar corrección de ${esc(v.head)}">${v.preferred && !v.eHead && !v.eTrad && !v.eNote ? '✓ Guardada' : 'Guardar'}</button>
+      ${v.manual ? `<button class="xbtn" data-act="vdel" data-k="${k}" title="Quitar">×</button>` : `<button class="xbtn" data-act="vreset" data-k="${k}" title="Restablecer la entrada en este examen">↺</button>`}
     </div>`).join('');
     box.oninput = (e) => {
       const row = e.target.closest('.vrow'); if (!row) return;
@@ -494,6 +510,8 @@
       if (e.target.classList.contains('vh')) { v.head = e.target.value; v.eHead = true; }
       if (e.target.classList.contains('vt')) { v.trad = e.target.value; v.eTrad = true; }
       if (e.target.classList.contains('vn')) { v.note = e.target.value; v.eNote = true; }
+      const saveButton = row.querySelector('.vsave');
+      if (saveButton) { saveButton.textContent = 'Guardar'; saveButton.classList.remove('saved'); }
       changed();
     };
     box.onchange = (e) => {
