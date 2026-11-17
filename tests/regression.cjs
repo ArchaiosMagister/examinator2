@@ -92,7 +92,7 @@ module.exports = (async () => {
       { head: battleEntry.head, trad: 'combate', on: true }
     ], literatura: {}, qty: 'modelo', tamano: 10.5, hueco: 2.6
   };
-  const alphabetical = ctx.M.Exam.vocabList({
+  const alphabetical = Array.from(ctx.M.Exam.vocabList({
     vocabItems: [
       { head: 'prœlium', on: true },
       { head: 'poeta', on: true },
@@ -100,7 +100,7 @@ module.exports = (async () => {
       { head: 'æquus', on: true },
       { head: 'aetas', on: true }
     ]
-  }).map((x) => x.head);
+  }), (x) => x.head);
   assert.deepEqual(alphabetical, ['æquus', 'aer', 'aetas', 'poeta', 'prœlium'],
     'Las ligaduras no deben romper el orden alfabético del vocabulario');
   const ligatedHTML = ctx.M.Exam.html(ligatedExam);
