@@ -20,6 +20,8 @@ jobs:
         run: node tests/regression.cjs
       - name: PWA y bancos académicos sin conexión
         run: node tests/pwa-banks.cjs
+      - name: Filtros docentes y listas históricas
+        run: node tests/lexico-filtros.cjs
       - name: Actualización segura de la PWA
         run: node tests/pwa-refresh.cjs
       - name: Diagnóstico HTTP del paquete publicado
