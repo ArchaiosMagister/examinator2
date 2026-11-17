@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v3-actualizacion-20261117';
+const VERSION = 'examinator2-v4-descargas-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -36,13 +36,44 @@ const PRECACHE = [
   "./js/start.js",
   "./js/pwa.js"
 ];
+// cache.addAll() abre todas las descargas en paralelo y, cuando una devuelve
+// error HTTP, sólo informa "response is not OK" sin identificar el archivo.
+// GitHub Pages puede limitar muchas peticiones simultáneas. Descargar en
+// secuencia, reintentar temporalmente y señalar la ruta problemática.
+async function downloadAll(cacheName) {
+  const cache = await caches.open(cacheName);
+  for (const path of PRECACHE) {
+    const url = new URL(path, self.registration.scope).href;
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await fetch(new Request(url, { cache: 'reload' }));
+        if (!response.ok) throw new Error(path + ' (HTTP ' + response.status + ')');
+        await cache.put(url, response);
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = new Error('No se pudo descargar ' + path + ': ' + (error.message || error));
+        // Reintentar errores de red y respuestas temporales sin saturar Pages.
+        if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      }
+    }
+    if (lastError) throw lastError;
+  }
+  return PRECACHE.length;
+}
+
 const HOME = new URL('./index.html', self.registration.scope).href;
 const assets = new Set(PRECACHE.map((p) => new URL(p, self.registration.scope).href));
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    const cache = await caches.open(VERSION);
-    await cache.addAll(PRECACHE.map((p) => new URL(p, self.registration.scope).href));
+    try {
+      await downloadAll(VERSION);
+    } catch (error) {
+      await caches.delete(VERSION);
+      throw error; // la versión anterior continúa operativa
+    }
     await self.skipWaiting();
   })());
 });
@@ -67,16 +98,12 @@ self.addEventListener('message', (event) => {
   event.waitUntil((async () => {
     const stagingName = PREFIX + 'manual-' + Date.now();
     try {
-      const cache = await caches.open(stagingName);
-      const requests = PRECACHE.map((p) => new Request(
-        new URL(p, self.registration.scope).href, { cache: 'reload' }
-      ));
-      await cache.addAll(requests);
+      const count = await downloadAll(stagingName);
       const existing = await caches.keys();
       await Promise.all(existing
         .filter((name) => name.startsWith(PREFIX) && name !== stagingName)
         .map((name) => caches.delete(name)));
-      if (replyPort) replyPort.postMessage({ ok: true, count: PRECACHE.length });
+      if (replyPort) replyPort.postMessage({ ok: true, count });
     } catch (error) {
       await caches.delete(stagingName);
       if (replyPort) replyPort.postMessage({
