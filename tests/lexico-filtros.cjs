@@ -29,6 +29,16 @@ const knownPreverbs = new Set(lists.preverbios.map((r) => simple(r.base)));
 const knownPrefixes = new Set(lists.prefijos.map((w) => w.toLocaleLowerCase('es')));
 const missingPreverbs = oldPreverbs.filter((row) => !knownPreverbs.has(simple(row.base)));
 const missingPrefixes = oldPrefixes.filter((w) => !knownPrefixes.has(w.toLocaleLowerCase('es')));
+const newByBase = new Map(lists.preverbios.map((row) => [simple(row.base), row]));
+const lostDerivatives = oldPreverbs.flatMap((row) => {
+  const target = newByBase.get(simple(row.base));
+  const targetSet = new Set((target?.compuestos || []).map((x) => x.toLocaleLowerCase('es')));
+  return row.compuestos.filter((x) => !targetSet.has(x.toLocaleLowerCase('es')))
+    .map((x) => simple(row.base) + ': ' + x);
+});
+console.log('Auditoría de derivados antiguos omitidos por la fuente: ' +
+  lostDerivatives.length + ' [' + lostDerivatives.slice(0, 20).join(' | ') + '].');
+
 console.log('Auditoría de originales: ' + oldPreverbs.length + ' preverbios previos, '
   + oldPrefixes.length + ' prefijos previos; ausentes de la copia docente: '
   + missingPreverbs.length + ' preverbios [' + missingPreverbs.map((x) => x.base).slice(0,10).join(' | ') + '], '
