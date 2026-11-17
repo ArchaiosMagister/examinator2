@@ -21,7 +21,7 @@
 html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--ui-font); font-size: 14px; }
 body { display: grid; grid-template-rows: var(--top-band-height) 48px 1fr; overflow: hidden; }
 /* Primer elemento visual de la cuadrícula, sin modificar la cabecera ni sus botones. */
-body::before { content: ''; display: block; background: var(--accent); pointer-events: none; }
+body::before { content: 'Examinator'; display: flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; font-family: var(--text-font); font-size: 22px; letter-spacing: .03em; font-variant: small-caps; user-select: none; pointer-events: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .hidden { display: none !important; }
