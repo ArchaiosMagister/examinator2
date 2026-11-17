@@ -94,6 +94,11 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
 
 .q4b { margin-bottom: 8px; }
 .q4t { font-weight: 600; font-size: 12.5px; color: var(--ink-2); margin-bottom: 3px; }
+.q4t .tbtn { margin: 0 4px 2px 8px; vertical-align: middle; }
+.normGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; max-height: 52vh; overflow-y: auto; }
+.normOption { display: flex; align-items: baseline; gap: 6px; font-size: 13px; line-height: 1.35; padding: 5px 3px; }
+.normOption input { flex: 0 0 auto; }
+@media (max-width: 560px) { .normGrid { grid-template-columns: 1fr; } }
 .qrow { display: flex; gap: 6px; align-items: center; margin-bottom: 3px; }
 .qrow .it { flex: 1; font-family: var(--text-font); font-style: italic; font-size: 14.5px; }
 .qrow .fen { width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
