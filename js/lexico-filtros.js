@@ -29,6 +29,9 @@
     const selected = F.normasSeleccionadas(S);
     const total = F.normas.length;
     const restricted = selected.size !== total;
+    // Sin filtros activos, reproducir exactamente el sorteo histórico,
+    // incluidas las entradas personalizadas sin ficha académica.
+    if (!restricted) return M.lists.evolucion || [];
     if (!selected.size) return [];
     return (M.lists.evolucion || []).map((g) => {
       const id = g.id || normaByName.get(key(g.nombre));
