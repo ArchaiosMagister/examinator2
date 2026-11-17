@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v10-titulo-franja-ipad-20261117';
+const VERSION = 'examinator2-v11-vocab-correcciones-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
