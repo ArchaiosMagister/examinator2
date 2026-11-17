@@ -10,6 +10,7 @@
   --rule: #d8d3c7;
   --rule-2: #e6e1d6;
   --accent: #1d5466;
+  --top-band-height: 10px; /* franja separadora ante el difuminado superior de iPadOS */
   --accent-soft: #d9e8ec;
   --link: #24508a;
   --c-n: #2d6cb5; --c-a: #2f8a4e; --c-p: #b0632b; --c-v: #a2324e;
@@ -18,7 +19,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--ui-font); font-size: 14px; }
-body { display: grid; grid-template-rows: 48px 1fr; overflow: hidden; }
+body { display: grid; grid-template-rows: var(--top-band-height) 48px 1fr; overflow: hidden; }
+/* Primer elemento visual de la cuadrícula, sin modificar la cabecera ni sus botones. */
+body::before { content: ''; display: block; background: var(--accent); pointer-events: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .hidden { display: none !important; }
@@ -122,7 +125,7 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
 .pop .pv { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
 
 /* biblioteca */
-#lib { position: fixed; inset: 48px 0 0 0; background: var(--paper); z-index: 40; display: grid; grid-template-rows: 46px 1fr; }
+#lib { position: fixed; inset: calc(48px + var(--top-band-height)) 0 0 0; background: var(--paper); z-index: 40; display: grid; grid-template-rows: 46px 1fr; }
 .lhead { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--panel); }
 .lbody { display: grid; grid-template-columns: 440px 1fr; min-height: 0; }
 .lcat { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; border-right: 1px solid var(--rule); }

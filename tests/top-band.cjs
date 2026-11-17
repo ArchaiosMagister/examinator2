@@ -1,0 +1,33 @@
+/* La franja superior desplaza el encabezado y mantiene alineada la biblioteca.
+ * Pruebas estáticas de CSS/HTML; la verificación óptica final se hace en iPad.
+ */
+'use strict';
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const css = fs.readFileSync('styles.css', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
+const sw = fs.readFileSync('sw.js', 'utf8');
+
+const band = /--top-band-height:\s*(\d+)px\s*;/g.exec(css);
+assert.ok(band, 'La altura de franja debe tener una variable única');
+const pixels = Number(band[1]);
+assert.ok(pixels >= 6 && pixels <= 12, 'La banda debe ser fina y no obstaculizar botones');
+assert.match(css, /--accent:\s*#1d5466\s*;/);
+assert.match(css, /body\s*\{\s*display:\s*grid;\s*grid-template-rows:\s*var\(--top-band-height\)\s+48px\s+1fr;/);
+assert.match(css, /body::before\s*\{[^}]*content:\s*'';[^}]*background:\s*var\(--accent\);[^}]*pointer-events:\s*none;/);
+assert.match(css, /header\s*\{\s*display:\s*flex;\s*align-items:\s*center;[^}]*padding:\s*0 14px;/);
+assert.match(css, /#lib\s*\{[^}]*inset:\s*calc\(48px \+ var\(--top-band-height\)\)\s+0\s+0\s+0;/);
+assert.match(css, /#lib\s*\{[^}]*z-index:\s*40;/);
+assert.match(css, /main\s*\{\s*display:\s*grid;/);
+const topButtonIds = ['btnNew', 'btnOpen', 'btnSave', 'btnLib', 'btnLists', 'btnSettings',
+  'btnInstall', 'btnUpdate', 'btnDocx', 'btnPdf'];
+for(const id of topButtonIds) {
+  const count = html.split('id="' + id + '"').length - 1;
+  assert.equal(count, 1, id + ' sigue existiendo exactamente una vez');
+}
+assert.equal((html.match(/<header>/g)||[]).length, 1, 'Cabecera sin duplicar');
+assert.equal((html.match(/<\/header>/g)||[]).length, 1, 'Cabecera intacta');
+assert.match(sw, /examinator2-v8-vocab-ligaduras-franja-ipad-20261117/);
+assert.match(sw, /"\.\/styles\.css"/);
+assert.equal(48 + pixels, 58, 'La biblioteca empieza bajo la cabecera y la banda');
+console.log('OK: banda verde de ' + pixels + ' px, encabezado íntegro, biblioteca alineada y PWA versionada.');

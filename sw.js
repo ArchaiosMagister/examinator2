@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v7-vocab-ligaduras-20261117';
+const VERSION = 'examinator2-v8-vocab-ligaduras-franja-ipad-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
