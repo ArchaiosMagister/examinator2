@@ -27,6 +27,48 @@
     });
   };
   V.rows = () => M.store.get('vocabulario', []);
+  // Guarda la entrada elegida en el mismo banco preferente de Ajustes.
+  // El lema se obtiene de Collatinus (no del enunciado que se haya editado),
+  // para que incluso una corrección del nominativo siga vinculada a la palabra.
+  V.saveCorrection = function (item) {
+    if (!item) throw new Error('No hay entrada que guardar.');
+    const head = String(item.head || '').trim();
+    const trad = String(item.trad || '').trim();
+    if (!head || !trad) throw new Error('Escribe un enunciado y un significado antes de guardar.');
+    let base;
+    if (item.lid) {
+      const token = (M.S.tokens || []).find((t) => t.sel && t.sel.lid === item.lid);
+      if (!token || !(token.lplain || token.lemma)) {
+        throw new Error('No se puede identificar el lema. Vuelve a analizar el texto.');
+      }
+      base = token.lplain || token.lemma;
+    } else if (item.customWord) {
+      const previous = V.find([item.customWord]);
+      base = previous ? previous.lema : item.customWord;
+    } else if (item.manual) {
+      base = head; // Las entradas añadidas a mano se identifican por su propio lema.
+    } else {
+      throw new Error('No se puede identificar el lema de esta entrada.');
+    }
+    const k = lemma(base);
+    if (!k) throw new Error('El lema está vacío.');
+    const rows = V.rows();
+    const i = rows.findIndex((r) => lemma(r.lema || r.head) === k);
+    const previous = i < 0 ? null : rows[i];
+    const row = {
+      lema: previous ? previous.lema : String(base).split(/[,\\s(]/)[0],
+      head, trad,
+      formas: previous && Array.isArray(previous.formas) ? previous.formas : [],
+      note: String(item.note || '').trim()
+    };
+    const next = rows.slice();
+    if (i >= 0) next[i] = row; else next.push(row);
+    // Validación completa antes de escribir; una cuota llena debe producir
+    // error visible, nunca una falsa confirmación de guardado.
+    const validated = V.parse(JSON.stringify(next));
+    localStorage.setItem('examinator.vocabulario', JSON.stringify(validated));
+    return validated[i >= 0 ? i : validated.length - 1];
+  };
   V.find = function (names, formsOnly) {
     const keys = new Set(names.filter(Boolean).map(formsOnly ? key : lemma));
     return V.rows().find((r) => (formsOnly ? r.formas.map(key) : [lemma(r.lema || r.head)]).some((k) => keys.has(k)));
