@@ -70,7 +70,7 @@ assert.notEqual(dirs['/app/data/listas/prefijos.json'], prefDefault);
 const preverbs = JSON.parse(dirs['/app/data/listas/preverbios.json']);
 const prefixes = JSON.parse(dirs['/app/data/listas/prefijos.json']);
 assert.equal(preverbs.length, 120);
-assert.equal(prefixes.length, 286);
+assert.equal(prefixes.length, 287); // 286 docentes + 1 legado anterior
 assert.equal(preverbs[0].base, additional.preverbios.items[0].enunciado);
 assert.equal(preverbs[0].sourceId, additional.preverbios.items[0].id);
 assert.deepEqual(Array.from(preverbs[0].compuestos), Array.from(additional.preverbios.items[0].derivatives));
