@@ -55,6 +55,7 @@ assert.match(library,/if \(typeof M\.showMobileView === 'function'\) M\.showMobi
 function node(name) {
   const classes=new Set(), listeners={}, attrs={};
   return { name, dataset:{}, listeners, attrs, parent:null,
+    contains(target) { return target === this || target?.parent === this; },
     classList:{
       contains:x=>classes.has(x),
       add:x=>classes.add(x),
