@@ -11,7 +11,7 @@ module.exports = (async () => {
   vm.createContext(ctx);
   const load = (p) => vm.runInContext(fs.readFileSync(path.join(root, p), 'utf8'), ctx, { filename: p });
   for (const p of fs.readdirSync(path.join(root, 'js'))) new vm.Script(fs.readFileSync(path.join(root, 'js', p), 'utf8'), { filename: p });
-  load('js/datos.js'); load('js/incluidos.js');
+  load('js/datos.js'); load('js/bancos-datos.js'); load('js/lexico-bancos-datos.js'); load('js/bancos-loader.js'); load('js/incluidos.js');
   let handler;
   const replies = new Map(); let id = 0;
   const fakeFs = {
@@ -29,6 +29,18 @@ module.exports = (async () => {
     const n = ++id; replies.set(n, (m) => m.error ? reject(Error(m.error)) : resolve(m.result));
     handler({ type: 'call', id: n, method, args });
   });
+  const academic = await call('lists');
+  assert.equal(academic.preverbios.length, 120);
+  assert.equal(academic.prefijos.length, 286);
+  assert.equal(academic.evolucion.length, 20);
+  assert.equal(academic.latinismos.length, 87);
+  // Las listas guardadas por el profesor prevalecen sobre las de fábrica.
+  const userFile = '/datos/listas/latinismos.json';
+  const customLatin = [{ termino: 'locución personal', expl: 'docente' }];
+  ctx.EXDATA[userFile] = JSON.stringify(customLatin);
+  assert.equal((await call('lists')).latinismos[0].termino, 'locución personal');
+  delete ctx.EXDATA[userFile];
+  assert.equal((await call('lists')).latinismos[0].termino, 'a posteriori');
   const catalog = await call('catalog');
   assert.equal(new Set(catalog.map((w) => w.urn)).size, catalog.length, 'No duplicate catalog entries');
   const caesar = catalog.filter((w) => w.author === 'Julio César');
