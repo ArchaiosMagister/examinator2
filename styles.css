@@ -141,12 +141,13 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
 .lread { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
 .rhead { padding: 8px 16px; border-bottom: 1px solid var(--rule-2); display: flex; flex-direction: column; gap: 6px; }
 .rhead input { padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; }
-.rtext { overflow-y: auto; padding: 12px 20px 60px; font-family: var(--text-font); font-size: 17px; line-height: 1.6; }
+.rtext { overflow-y: auto; padding: 12px 20px 60px; font-family: var(--text-font); font-size: 17px; line-height: 1.6; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .rl { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
 .rl.rh .rx { font-weight: bold; }
 .rl.flash { background: #fff3b0; }
 .rc { font-family: var(--ui-font); font-size: 11.5px; color: var(--ink-3); text-align: right; padding-top: 5px; user-select: none; }
 .spk { font-variant: small-caps; color: var(--ink-2); }
+.rtext .rx { -webkit-user-select: text; user-select: text; }
 .rtext ::selection { background: #bcd8e2; }
 
 /* ventanas */
