@@ -26,6 +26,8 @@ jobs:
         run: node tests/lexico-filtros.cjs
       - name: Selección táctil de textos en iPad
         run: node tests/library-selection.cjs
+      - name: Franja superior segura en iPad
+        run: node tests/top-band.cjs
       - name: Actualización segura de la PWA
         run: node tests/pwa-refresh.cjs
       - name: Diagnóstico HTTP del paquete publicado
