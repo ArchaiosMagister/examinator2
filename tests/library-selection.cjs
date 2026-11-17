@@ -146,10 +146,12 @@ async function clickUse() {
 (async () => {
   await ctx.M.openLibrary();
   assert.ok(panel.dataset.built, 'Biblioteca construida');
+  assert.equal(panel.dataset.mobilePane, 'catalog', 'En iPhone se abre primero el catálogo de obras');
   assert.equal(useButton.disabled, false, 'El botón debe ser tocable antes de selectionchange');
   assert.ok(useButton.classList.contains('no-selection'));
   await clickRow(0);
   assert.equal(reader.children.length, 3);
+  assert.equal(panel.dataset.mobilePane, 'reader', 'Al elegir obra se muestra el lector en iPhone');
   assert.equal(useButton.disabled, false);
   assert.ok(useButton.classList.contains('no-selection'));
 

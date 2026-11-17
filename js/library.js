@@ -20,6 +20,7 @@
     savedSelection = null;
     const box = $('#lib');
     box.classList.remove('hidden');
+    box.dataset.mobilePane = 'catalog';
     await loadCatalog();
     if (!box.dataset.built) build(box);
     $('.rtext', box).innerHTML = '';
@@ -35,7 +36,7 @@
     box.innerHTML = `
       <div class="lhead">
         <b>Biblioteca</b> <span class="muted small">Eutropio, Julio César y las obras de literatura vienen incluidos. Los demás textos de Perseus se pueden descargar para leer sin conexión. Fuentes y licencias: FUENTES.md.</span>
-        <span class="spacer"></span><button class="hbtn" data-act="close">Volver al examen</button>
+        <span class="spacer"></span><span class="library-switch" aria-label="Vistas de biblioteca"><button type="button" class="hbtn on" data-act="books">Obras</button><button type="button" class="hbtn" data-act="read">Leer</button></span><button class="hbtn" data-act="close">Volver al examen</button>
       </div>
       <div class="lbody">
         <div class="lcat">
@@ -65,6 +66,12 @@
       if (b) {
         const a = b.dataset.act;
         if (a === 'close') close();
+        if (a === 'books') { setMobilePane('catalog'); return; }
+        if (a === 'read') {
+          if (!cur) M.toast('Primero elige una obra para leerla.');
+          else setMobilePane('reader');
+          return;
+        }
         if (a === 'dl') {
           const ids = Array.from(st.sel).filter((i) => !cat[i].have);
           if (!ids.length) { M.toast('Marca primero las obras que quieres descargar.'); return; }
@@ -118,6 +125,18 @@
     for (const x of genres.sort()) { const o = el('option', { value: x }); o.textContent = x; g.appendChild(o); }
   }
 
+  function setMobilePane(pane) {
+    const box = $('#lib');
+    if (!box) return;
+    box.dataset.mobilePane = pane;
+    for (const btn of (box.querySelectorAll ? box.querySelectorAll('.library-switch [data-act]') : [])) {
+      const selected = (pane === 'catalog' && btn.dataset.act === 'books') ||
+        (pane === 'reader' && btn.dataset.act === 'read');
+      btn.classList.toggle('on', selected);
+      btn.setAttribute('aria-pressed', String(selected));
+    }
+  }
+
   function drawList() {
     const box = $('#lib .llist'); if (!box || !cat) return;
     const f = M.fold(st.f);
@@ -148,6 +167,7 @@
       frag.appendChild(d);
     });
     const rt = $('.rtext', box); rt.innerHTML = ''; rt.appendChild(frag); rt.scrollTop = 0;
+    setMobilePane('reader');
     drawList();
   }
   function goTo(q) {
@@ -159,7 +179,7 @@
 
   // La selección se guarda como texto y cita, nunca como un Range vivo:
   // en Safari el objeto Range puede mutar cuando la selección desaparece.
-  const hint = 'Selecciona el fragmento (en iPad, mantén pulsado y ajusta los marcadores).';
+  const hint = 'Selecciona el fragmento (en iPhone o iPad, mantén pulsado y ajusta los marcadores).';
   function clearSelection() {
     savedSelection = null;
     refreshSelectionHint();
@@ -228,6 +248,7 @@
       return;
     }
     M.setTextFromLibrary({ urn: cur.urn, text: r.text, author: cur.author, obra: cur.latin, cita: r.cita });
+    if (typeof M.showMobileView === 'function') M.showMobileView('editor');
     close();
     M.toast('Fragmento copiado al examen. Escribe el título del texto.');
   }

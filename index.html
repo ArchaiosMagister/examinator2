@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; img-src 'self' file: data: blob:; style-src 'self' file: 'unsafe-inline'; font-src 'self' file: data:; script-src 'self' file:; connect-src 'self' https://raw.githubusercontent.com; frame-src 'self' blob: about:">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.png">
@@ -15,6 +15,9 @@
 </head>
 <body>
 <header>
+  <button class="hbtn mobile-menu-toggle" id="btnMobileMenu" type="button" aria-controls="headerActions" aria-expanded="false" aria-label="Abrir menú de acciones">☰ Menú</button>
+  <button class="hbtn mobile-lib-shortcut" id="btnMobileLibrary" type="button">Biblioteca</button>
+  <div class="header-actions" id="headerActions">
   <span class="brand">Examinator</span>
   <button class="hbtn" id="btnNew" title="Empezar un examen nuevo">Nuevo</button>
   <button class="hbtn" id="btnOpen" title="Abrir un examen guardado">Abrir…</button>
@@ -29,7 +32,12 @@
   <span class="busy hidden" id="busy">Analizando…</span>
   <button class="hbtn" id="btnDocx">Exportar Word</button>
   <button class="hbtn primary" id="btnPdf">Exportar PDF</button>
+  </div>
 </header>
+<nav class="mobile-views" id="mobileViews" aria-label="Vistas del examen">
+  <button type="button" class="mobile-view on" data-view="editor" aria-pressed="true">Editar examen</button>
+  <button type="button" class="mobile-view" data-view="preview" aria-pressed="false">Vista previa</button>
+</nav>
 <main id="main">
   <section id="editor"></section>
   <section id="preview"><div class="sheet" id="sheet"></div></section>
@@ -50,6 +58,7 @@
 <script src="js/propose.js"></script>
 <script src="js/exam.js"></script>
 <script src="js/library.js"></script>
+<script src="js/mobile.js"></script>
 <script src="js/lists.js"></script>
 <script src="js/start.js"></script>
 <script src="js/pwa.js"></script>
