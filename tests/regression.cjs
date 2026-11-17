@@ -73,5 +73,23 @@ module.exports = (async () => {
   const doc = await zip.file('word/document.xml').async('string');
   assert.match(styles, /w:sz w:val="21"/); assert.match(styles, /w:ascii="Palatino"/);
   assert.match(doc, /w:after="0"/); assert.match(doc, /At regina gravi/); assert.match(doc, /Traducción/);
+  // Espaciado de pregunta 4: compatibilidad de los valores anteriores y
+  // conversión precisa a twips en Word (1 cm ~= 567 twips).
+  assert.equal(ctx.M.Exam.q4Space({}), 2.6);
+  assert.equal(ctx.M.Exam.q4Space({ hueco: 1.8 }), 1.8);
+  assert.equal(ctx.M.Exam.q4Space({ hueco: -3 }), 2.6);
+  assert.equal(ctx.M.Exam.q4Space({ hueco: 50 }), 2.6);
+  assert.equal(ctx.M.Exam.q4Space({ hueco: 'incorrecto' }), 2.6);
+  for (const cm of [0, 0.05, 1.25, 2.6, 3.5, 10]) {
+    const spaced = { ...S, hueco: cm };
+    const cssSpaced = ctx.M.Exam.pageCss(spaced);
+    assert.ok(cssSpaced.includes('margin-bottom: ' + cm + 'cm;'), 'Vista previa y PDF: ' + cm + ' cm');
+    const word = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(spaced), { base64: true });
+    const xml = await word.file('word/document.xml').async('string');
+    const after = [...xml.matchAll(/<w:spacing w:before="0" w:after="(\d+)"\/><w:ind w:left="1134"/g)].map((x) => Number(x[1]));
+    assert.deepEqual(after, [Math.round(cm * 567), Math.round(cm * 567), Math.round(cm * 567), 0], 'Espacio exacto en Word: ' + cm + ' cm');
+  }
+  assert.match(fs.readFileSync(path.join(root, 'js/start.js'), 'utf8'), /class="sh" type="number" min="0" max="10" step="0\.05"/);
+
   console.log('OK: syntax, offline texts, catalog, literature, vocabulary preference/fallback, preview, review mode and DOCX.');
 })().catch((e) => { console.error(e); throw e; });
