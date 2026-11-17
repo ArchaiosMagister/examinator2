@@ -2,6 +2,12 @@
 
 Examinator2 se instala desde su URL de GitHub Pages (HTTPS), mediante el botón **Instalar** o el menú del navegador. La instalación prepara un *service worker* que almacena la interfaz, el motor, los diccionarios/textos incluidos, la exportación de Word y los bancos docentes. Una vez completada la primera carga online puede abrirse y generar exámenes **sin conexión**. Los textos opcionales de Perseus aún no descargados requieren acceso inicial a internet.
 
+## Actualización manual y espacio de respuesta
+
+El botón **Actualizar** de la cabecera busca la nueva versión del service worker y vuelve a descargar **todos** los recursos incluidos de la webapp, incluso si el service worker no ha cambiado. Prepara una caché temporal y reemplaza la anterior solo después de descargarla íntegra. Si el dispositivo está sin conexión o falta algún recurso, conserva la copia anterior y muestra un aviso. Antes de recargar, guarda de forma síncrona el examen abierto en el almacenamiento local; nunca borra las listas personalizadas, los textos de Perseus descargados ni los ajustes.
+
+En **Ajustes → Espacio entre los apartados de la pregunta 4 (cm)** se admite una cantidad precisa entre 0 y 10 cm, con controles de 0,05 cm. El valor predeterminado sigue siendo **2,6 cm**; los exámenes y preferencias antiguas, incluidos los valores equivalentes a «pequeño» (1,8 cm) y «grande» (3,5 cm), se respetan sin migración. Se usa el mismo valor en la vista previa, en el PDF y en Word (con conversión a twips).
+
 ## Origen y autonomía
 
 - Banco fonético: `ArchaiosMagister/GeneradorExamenes/data/fonetica/banco_examenes.json` (655 entradas `APTO_PROPUESTO`, agrupadas en las veinte normas del banco). Mantiene los datos de respuesta, estado y transmisión en `EXACADEMIC_SOURCE`, pero **no publica las soluciones en el examen**.
