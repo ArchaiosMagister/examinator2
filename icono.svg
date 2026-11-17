@@ -1,6 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="102" fill="#1d5466"/>
-  <rect x="66" y="62" width="380" height="388" rx="30" fill="#f4f1ea"/>
-  <path d="M140 170h232M140 243h232M140 316h148" stroke="#1d5466" stroke-width="18" stroke-linecap="round"/>
-  <text x="344" y="378" text-anchor="middle" font-family="Georgia,serif" font-weight="bold" font-size="95" fill="#1d5466">II</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Examinator2">
+  <!-- Renovación del icono original: hoja y líneas con el monograma II. -->
+  <rect x="8" y="8" width="496" height="496" rx="106" fill="#075366"/>
+  <rect x="87" y="62" width="338" height="392" rx="55" fill="#f7f5ef"/>
+  <rect x="101" y="87" width="310" height="348" rx="47" fill="#075366"/>
+  <rect x="107" y="93" width="298" height="336" rx="42" fill="#f7f5ef"/>
+  <rect x="131" y="158" width="250" height="24" rx="12" fill="#075366"/>
+  <rect x="131" y="225" width="250" height="24" rx="12" fill="#075366"/>
+  <rect x="131" y="292" width="155" height="24" rx="12" fill="#075366"/>
+  <g fill="#075366">
+    <path d="M282 334h46v10h-14v63h14v10h-46v-10h14v-63h-14z"/>
+    <path d="M348 334h46v10h-14v63h14v10h-46v-10h14v-63h-14z"/>
+  </g>
 </svg>
