@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v4-descargas-20261117';
+const VERSION = 'examinator2-v5-lexico-filtrado-20261117';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -22,6 +22,7 @@ const PRECACHE = [
   "./lib/jszip.min.js",
   "./js/datos.js",
   "./js/bancos-datos.js",
+  "./js/lexico-bancos-datos.js",
   "./js/bancos-loader.js",
   "./js/incluidos.js",
   "./js/shim.js",
@@ -29,6 +30,7 @@ const PRECACHE = [
   "./js/util.js",
   "./js/vocabulario.js",
   "./js/render.js",
+  "./js/lexico-filtros.js",
   "./js/propose.js",
   "./js/exam.js",
   "./js/library.js",

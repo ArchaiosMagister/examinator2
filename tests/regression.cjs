@@ -11,7 +11,7 @@ module.exports = (async () => {
   vm.createContext(ctx);
   const load = (p) => vm.runInContext(fs.readFileSync(path.join(root, p), 'utf8'), ctx, { filename: p });
   for (const p of fs.readdirSync(path.join(root, 'js'))) new vm.Script(fs.readFileSync(path.join(root, 'js', p), 'utf8'), { filename: p });
-  load('js/datos.js'); load('js/incluidos.js');
+  load('js/datos.js'); load('js/bancos-datos.js'); load('js/lexico-bancos-datos.js'); load('js/bancos-loader.js'); load('js/incluidos.js');
   let handler;
   const replies = new Map(); let id = 0;
   const fakeFs = {
@@ -29,6 +29,18 @@ module.exports = (async () => {
     const n = ++id; replies.set(n, (m) => m.error ? reject(Error(m.error)) : resolve(m.result));
     handler({ type: 'call', id: n, method, args });
   });
+  const academic = await call('lists');
+  assert.equal(academic.preverbios.length, 120);
+  assert.equal(academic.prefijos.length, 287); // 286 fuente + Ultrapuertos histórico
+  assert.equal(academic.evolucion.length, 20);
+  assert.equal(academic.latinismos.length, 87);
+  // Las listas guardadas por el profesor prevalecen sobre las de fábrica.
+  const userFile = '/datos/listas/latinismos.json';
+  const customLatin = [{ termino: 'locución personal', expl: 'docente' }];
+  ctx.EXDATA[userFile] = JSON.stringify(customLatin);
+  assert.equal((await call('lists')).latinismos[0].termino, 'locución personal');
+  delete ctx.EXDATA[userFile];
+  assert.equal((await call('lists')).latinismos[0].termino, 'a posteriori');
   const catalog = await call('catalog');
   assert.equal(new Set(catalog.map((w) => w.urn)).size, catalog.length, 'No duplicate catalog entries');
   const caesar = catalog.filter((w) => w.author === 'Julio César');
@@ -47,6 +59,9 @@ module.exports = (async () => {
   assert.equal(first.length, 116); assert.match(first[0].t, /Haec tua Penelope/);
   const tokens = await call('analyze', { text: 'Gallia est omnis divisa in partes tres.' });
   assert.ok(tokens.every((t) => t.sel));
+  const verbTokens = await call('analyze', { text: 'Capio et ago.' });
+  assert.ok(verbTokens.some((t) => t.sel && t.cat === 'v' && Array.isArray(t.rows) && t.rows.length),
+    'Los verbos del texto siguen vinculados al banco de modificación preverbial');
   const storage = new Map();
   ctx.localStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) };
   load('js/util.js'); load('js/vocabulario.js'); load('js/render.js'); load('lib/jszip.min.js');
@@ -67,6 +82,9 @@ module.exports = (async () => {
   const css = ctx.M.Exam.pageCss(S);
   assert.match(css, /font-size: 10.5pt/); assert.match(css, /margin: 0 0 0cm/); assert.match(css, /margin-bottom: 0cm/);
   const html = ctx.M.Exam.html(S); assert.match(html, /At regina gravi\nvolnus alit/); assert.match(html, /litTranslation"><\/div>/);
+  const sameOutput = ctx.M.Exam.html({ ...S, evolNormas: ['N07'],
+    latinFilter: { desde: 20, hasta: 50, paridad: 'impares', activo: true } });
+  assert.equal(sameOutput, html, 'Los filtros del sorteo nunca modifican el documento exportado');
   assert.ok(ctx.M.Exam.questionList({ documento: 'repaso' }).every((q) => !/\(\d+p/.test(q)));
   const zip = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(S), { base64: true });
   const styles = await zip.file('word/styles.xml').async('string');

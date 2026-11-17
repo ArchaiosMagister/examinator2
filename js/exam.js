@@ -262,11 +262,17 @@
       if (e2) Object.assign(v, { head: e2.head, trad: e2.trad, note: e2.note, eHead: false, eTrad: false, eNote: false });
       renderVocab(); changed();
     }
-    if (act === 'q4all') { P.preverbs(S); P.evol(S); P.pref(S); P.latin(S); renderQ4(); changed(); }
+    if (act === 'evolFilter') { openEvolFilters(); return; }
+    if (act === 'latinFilter') { openLatinFilters(); return; }
+    if (act === 'q4all') {
+      P.preverbs(S); const ev = P.evol(S); P.pref(S); const lat = P.latin(S);
+      if (!ev || !lat) M.toast('Los filtros no permiten generar cuatro palabras distintas en todos los apartados.');
+      renderQ4(); changed();
+    }
     if (act === 'prevOne') { if (!P.preverbOne(S, +b.dataset.k)) M.toast('No hay otro verbo de la lista en el texto que sirva.'); renderQ4(); changed(); }
-    if (act === 'evolOne') { P.evolOne(S, +b.dataset.k); renderQ4(); changed(); }
+    if (act === 'evolOne') { if (!P.evolOne(S, +b.dataset.k)) M.toast('No hay otra palabra compatible con las normas seleccionadas.'); renderQ4(); changed(); }
     if (act === 'prefOne') { P.prefOne(S, +b.dataset.k); renderQ4(); changed(); }
-    if (act === 'latOne') { P.latinOne(S, +b.dataset.k); renderQ4(); changed(); }
+    if (act === 'latOne') { if (!P.latinOne(S, +b.dataset.k)) M.toast('No hay otro latinismo en el intervalo y paridad elegidos.'); renderQ4(); changed(); }
   }
 
   /* ---------- palabras del texto ---------- */
@@ -335,21 +341,115 @@
     }).join('') + ((S.subr || []).filter((s) => !'napv'.includes(s.cat)).length ? '' : '');
   }
 
+  /* ---------- filtros de léxico (sin alterar el texto del examen) ---------- */
+  function openEvolFilters() {
+    const F = M.LexicalFilters, S = M.S;
+    const chosen = new Set(F.normasSeleccionadas(S));
+    let soloPatrimoniales = S.evolSoloPatrimoniales === true;
+    const html = '<p class="small muted">Se eligen cuatro palabras de cuatro fenómenos diferentes. Cada étimo debe respetar todas las normas que tenga registradas.</p>' +
+      '<div class="row" style="margin-bottom:8px"><button class="tbtn sm" data-norm="all">Todas</button><button class="tbtn sm" data-norm="none">Ninguna</button><span class="small muted normCount"></span></div>' +
+      '<div class="normGrid">' + F.normas.map((n) => '<label class="normOption"><input type="checkbox" data-norma="' +
+        esc(n.id) + '"> <span>' + esc(n.id + ' · ' + n.nombre) + '</span></label>').join('') + '</div>' +
+      '<label class="normPatrimonial"><input class="onlyPatrimonial" type="checkbox"> Sólo evoluciones patrimoniales <span class="muted small">(excluye adaptaciones cultas, voces regionales y fichas sin transmisión acreditada)</span></label>';
+    const modal = M.modal('Seleccionar normas fonéticas', html, [
+      { label: 'Cancelar' },
+      { label: 'Aplicar', primary: true, onclick: () => {
+        const test = Object.assign({}, S, { evolNormas: [...chosen], evolSoloPatrimoniales: soloPatrimoniales, evol: [] });
+        if (!P.evol(test)) {
+          M.toast('No hay cuatro fenómenos distintos con palabras compatibles. Amplía la selección de normas.', 6500);
+          return false;
+        }
+        S.evolNormas = [...chosen]; S.evolSoloPatrimoniales = soloPatrimoniales; S.evol = test.evol;
+        renderQ4(); changed();
+      } }
+    ], { width: '610px' });
+    const body = modal.body;
+    const paint = () => {
+      $('[data-norma]', body).forEach((inp) => { inp.checked = chosen.has(inp.dataset.norma); });
+      $('.normCount', body).textContent = chosen.size + ' de ' + F.normas.length;
+      $('.onlyPatrimonial', body).checked = soloPatrimoniales;
+    };
+    body.addEventListener('change', (event) => {
+      const input = event.target;
+      if (input.classList.contains('onlyPatrimonial')) { soloPatrimoniales = input.checked; return; }
+      if (!input.dataset.norma) return;
+      if (input.checked) chosen.add(input.dataset.norma); else chosen.delete(input.dataset.norma);
+      paint();
+    });
+    body.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-norm]');
+      if (!btn) return;
+      chosen.clear();
+      if (btn.dataset.norm === 'all') F.normas.forEach((n) => chosen.add(n.id));
+      paint();
+    });
+    paint();
+  }
+
+  function openLatinFilters() {
+    const S = M.S, F = M.LexicalFilters;
+    const prior = S.latinFilter || F.defaultLatin();
+    const html = '<p class="small muted">Se conserva la numeración original de los 87 latinismos de GeneradorExamenes. Primero se filtra por número y paridad; después se sortean cuatro distintos.</p>' +
+      '<div class="latinFilterGrid"><label>Desde <input class="latinFrom" type="number" min="1" max="9999" step="1"></label>' +
+      '<label>Hasta <input class="latinTo" type="number" min="1" max="9999" step="1"></label>' +
+      '<label>Paridad <select class="latinParity"><option value="todos">Todos</option><option value="pares">Pares</option><option value="impares">Impares</option></select></label></div>' +
+      '<p class="small muted latinHelp"></p>';
+    const modal = M.modal('Latinismos: intervalo y paridad', html, [
+      { label: 'Cancelar' },
+      { label: 'Sin filtro', onclick: () => {
+        S.latinFilter = null; P.latin(S); renderQ4(); changed();
+      } },
+      { label: 'Aplicar', primary: true, onclick: (body) => {
+        const fromValue = $('.latinFrom', body).value.trim(), toValue = $('.latinTo', body).value.trim();
+        const desde = Number(fromValue), hasta = Number(toValue);
+        const paridad = $('.latinParity', body).value;
+        if (!fromValue || !toValue || !Number.isInteger(desde) || !Number.isInteger(hasta) ||
+            desde < 1 || hasta > 9999 || desde > hasta) {
+          M.toast('Indica un intervalo válido de números enteros entre 1 y 9999.');
+          return false;
+        }
+        const next = { desde, hasta, paridad, activo: true };
+        const test = Object.assign({}, S, { latinFilter: next, latin: [] });
+        if (!P.latin(test)) {
+          M.toast('En ese intervalo y paridad hay menos de cuatro latinismos disponibles.', 6500);
+          return false;
+        }
+        S.latinFilter = next; S.latin = test.latin;
+        renderQ4(); changed();
+      } }
+    ], { width: '570px' });
+    const body = modal.body;
+    $('.latinFrom', body).value = String(prior.desde);
+    $('.latinTo', body).value = String(prior.hasta);
+    $('.latinParity', body).value = prior.paridad || 'todos';
+    const custom = F.customLatinCount();
+    $('.latinHelp', body).textContent = (custom ? custom + ' entradas sin número siguen disponibles al usar «Sin filtro». ' : '') +
+      'La numeración no se imprime en la pregunta.';
+  }
+
   /* ---------- pregunta 4 ---------- */
   function renderQ4() {
     const S = M.S, box = $('#editor .q4'); if (!box) return;
     const nPrev = P.prevCandidates(S).length;
+    const F = M.LexicalFilters;
+    const selected = F ? F.normasSeleccionadas(S).size : 20;
+    const evolStatus = selected + '/' + (F ? F.normas.length : 20) + ' normas' +
+      (S.evolSoloPatrimoniales ? ' · patrimoniales' : '');
+    const lf = S.latinFilter;
+    const latinStatus = lf && lf.activo
+      ? esc(lf.desde + '–' + lf.hasta + ' · ' + (lf.paridad || 'todos'))
+      : 'sin filtro';
     box.innerHTML = `
       <div class="q4b"><div class="q4t">a. Modificación preverbial <span class="muted small">(${nPrev ? nPrev + (nPrev === 1 ? ' verbo de la lista en el texto' : ' verbos de la lista en el texto') : 'ningún verbo de la lista en el texto todavía'})</span></div>
         ${[0, 1].map((k) => `<div class="qrow"><input type="text" class="it" data-q="prev" data-k="${k}" value="${esc((S.prev[k] || {}).txt || '')}"><select data-q="prevn" data-k="${k}"><option value="3">3 derivados</option><option value="2">2 derivados</option></select><button class="tbtn sm" data-act="prevOne" data-k="${k}">Otro</button></div>`).join('')}
       </div>
-      <div class="q4b"><div class="q4t">b. Evolución fonética <span class="muted small">(cuatro fenómenos distintos)</span></div>
+      <div class="q4b"><div class="q4t">b. Evolución fonética <span class="muted small">(cuatro fenómenos distintos)</span><button class="tbtn sm" data-act="evolFilter">Seleccionar normas</button><span class="muted small">${evolStatus}</span></div>
         ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="evol" data-k="${k}" value="${esc((S.evol[k] || {}).w || '')}"><span class="fen small muted">${esc((S.evol[k] || {}).g || '')}</span><button class="tbtn sm" data-act="evolOne" data-k="${k}">Otra</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">c. Prefijos</div>
         ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="pref" data-k="${k}" value="${esc(S.pref[k] || '')}"><button class="tbtn sm" data-act="prefOne" data-k="${k}">Otra</button></div>`).join('')}
       </div>
-      <div class="q4b"><div class="q4t">d. Latinismos</div>
+      <div class="q4b"><div class="q4t">d. Latinismos <button class="tbtn sm" data-act="latinFilter">Intervalo y paridad</button><span class="muted small">${latinStatus}</span></div>
         ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="latin" data-k="${k}" value="${esc(S.latin[k] || '')}"><button class="tbtn sm" data-act="latOne" data-k="${k}">Otro</button></div>`).join('')}
       </div>`;
     $$('select[data-q=prevn]', box).forEach((s) => { s.value = String((S.prev[+s.dataset.k] || {}).n || (s.dataset.k === '0' ? 3 : 2)); });

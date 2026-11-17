@@ -7,11 +7,21 @@ const fs = require('node:fs');
 const sw = fs.readFileSync('sw.js', 'utf8');
 const arr = sw.match(/const PRECACHE = (\[[\s\S]*?\]);/);
 if (!arr) throw new Error('No se ha podido interpretar PRECACHE en sw.js');
-const paths = JSON.parse(arr[1].replace(/,\s*\]/g, ']'));
+const localPaths = JSON.parse(arr[1].replace(/,\s*\]/g, ']'));
 const base = new URL('https://archaiosmagister.github.io/examinator2/');
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 (async () => {
+  // Una PR aún no está publicada. Comprobar el PRECACHE del service worker
+  // que GitHub Pages sirve ahora, no los ficheros nuevos de la PR.
+  const current = await fetch(new URL('sw.js', base), { cache: 'no-store' });
+  if (!current.ok) throw new Error('No se pudo obtener el SW publicado (HTTP ' + current.status + ')');
+  const liveSw = await current.text();
+  const liveMatch = liveSw.match(/const PRECACHE = (\[[\s\S]*?\]);/);
+  if (!liveMatch) throw new Error('PRECACHE no encontrado en el SW publicado');
+  const paths = JSON.parse(liveMatch[1].replace(/,\s*\]/g, ']'));
+  const newPaths = localPaths.filter((p) => !paths.includes(p));
+  if (newPaths.length) console.log('Recursos nuevos de PR (comprobados localmente, pendientes de despliegue): ' + newPaths.join(', '));
   const failures = [];
   for (const path of paths) {
     const url = new URL(path, base);

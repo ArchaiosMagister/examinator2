@@ -16,10 +16,14 @@ jobs:
         run: |
           for file in js/*.js; do node --check "$file"; done
           node --check sw.js
+          node --check scripts/sync-bancos.mjs
+          node --check scripts/check-deployed-assets.cjs
       - name: Regresión del motor, documentos y biblioteca
         run: node tests/regression.cjs
       - name: PWA y bancos académicos sin conexión
         run: node tests/pwa-banks.cjs
+      - name: Filtros docentes y listas históricas
+        run: node tests/lexico-filtros.cjs
       - name: Actualización segura de la PWA
         run: node tests/pwa-refresh.cjs
       - name: Diagnóstico HTTP del paquete publicado
