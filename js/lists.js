@@ -4,24 +4,52 @@
   const { $, $$, esc } = M;
   const INFO = {
     preverbios: { t: 'Modificación preverbial', help: 'Una línea por verbo: el enunciado del verbo simple, dos puntos y sus compuestos separados por comas. Ej.: <i>duco, -ere, duxi, ductum: abduco, adduco, conduco</i>' },
-    evolucion: { t: 'Evolución fonética', help: 'Una línea por fenómeno: el nombre, dos puntos y las palabras separadas por comas. En cada examen se eligen cuatro palabras de cuatro fenómenos distintos.' },
+    evolucion: { t: 'Evolución fonética', help: 'Una línea por fenómeno: el nombre, dos puntos y las palabras separadas por comas. Las normas seleccionables se configuran desde la pregunta 4. Se mantienen cuatro fenómenos distintos.' },
     prefijos: { t: 'Prefijos', help: 'Una palabra por línea.' },
-    latinismos: { t: 'Latinismos', help: 'Un latinismo por línea. Si pones variantes con «o» (<i>placet o plácet</i>), en el examen sale la primera.' }
+    latinismos: { t: 'Latinismos', help: 'Un latinismo por línea. Los originales tienen número fijo (ej. <i>12. alter ego</i>); puedes asignar número a los que añadas, o dejarlos sin numerar para usarlos al quitar filtros. Las variantes con «o» muestran la primera.' }
   };
   const toText = (name, data) => {
     if (name === 'preverbios') return data.map((r) => r.base + ': ' + r.compuestos.join(', ')).join('\n');
     if (name === 'evolucion') return data.map((g) => g.nombre + ': ' + g.palabras.join(', ')).join('\n');
-    if (name === 'latinismos') return data.map((x) => x.termino).join('\n');
+    if (name === 'latinismos') return data.map((x) => (Number.isInteger(x.number) && x.number > 0 ? x.number + '. ' : '') + x.termino).join('\n');
     return data.join('\n');
   };
   const fromText = (name, txt, old) => {
     const lines = txt.split('\n').map((l) => l.trim()).filter(Boolean);
-    if (name === 'preverbios') return lines.map((l) => { const k = l.lastIndexOf(':'); return { base: (k > 0 ? l.slice(0, k) : l).trim(), compuestos: k > 0 ? l.slice(k + 1).split(',').map((x) => x.trim()).filter(Boolean) : [] }; });
-    if (name === 'evolucion') {
-      const om = new Map((old || []).map((g) => [g.nombre, g.desc]));
-      return lines.map((l) => { const k = l.indexOf(':'); const nombre = (k > 0 ? l.slice(0, k) : l).trim(); return { nombre, desc: om.get(nombre) || '', palabras: k > 0 ? l.slice(k + 1).split(',').map((x) => x.trim()).filter(Boolean) : [] }; });
+    if (name === 'preverbios') {
+      const previous = new Map((old || []).map((x) => [x.base, x]));
+      return lines.map((l) => {
+        const k = l.lastIndexOf(':'), base = (k > 0 ? l.slice(0, k) : l).trim();
+        return Object.assign({}, previous.get(base) || {}, {
+          base, compuestos: k > 0 ? l.slice(k + 1).split(',').map((x) => x.trim()).filter(Boolean) : []
+        });
+      });
     }
-    if (name === 'latinismos') { const om = new Map((old || []).map((x) => [x.termino, x.expl])); return lines.map((t) => ({ termino: t, expl: om.get(t) || '' })); }
+    if (name === 'evolucion') {
+      const om = new Map((old || []).map((g) => [g.nombre, g]));
+      return lines.map((l) => {
+        const k = l.indexOf(':'), nombre = (k > 0 ? l.slice(0, k) : l).trim();
+        return Object.assign({}, om.get(nombre) || {}, {
+          nombre, desc: (om.get(nombre) || {}).desc || '',
+          palabras: k > 0 ? l.slice(k + 1).split(',').map((x) => x.trim()).filter(Boolean) : []
+        });
+      });
+    }
+    if (name === 'latinismos') {
+      const norm = (v) => String(v || '').trim().toLocaleLowerCase('es');
+      const om = new Map((old || []).map((x) => [norm(x.termino), x]));
+      const canonical = new Map((((window.EXACADEMIC_SOURCE || {}).latinismos || {}).items || [])
+        .map((x) => [norm(x.prompt), x]));
+      return lines.map((line) => {
+        const match = /^(\d{1,4})[.)·:]\s+(.+)$/.exec(line);
+        const termino = match ? match[2].trim() : line;
+        const oldItem = om.get(norm(termino)) || {};
+        const source = canonical.get(norm(termino)) || {};
+        const number = match ? Number(match[1]) : oldItem.number || source.number || null;
+        return { termino, expl: oldItem.expl || source.answer || '',
+          ...(number ? { number } : {}) };
+      });
+    }
     return lines;
   };
   M.openLists = function () {
