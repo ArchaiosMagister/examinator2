@@ -5,6 +5,9 @@
   const P = M.Propose;
   let cat = null, st = { f: '', g: '', only: false, sel: new Set() }, cur = null, busy = false;
   let target = 'texto';
+  // Safari iPad puede contraer la selección al tocar un botón.
+  // Guardamos una copia INDEPENDIENTE del Range antes de que pierda el foco.
+  let savedSelection = null;
   const literature = new Map([
     ['phi0119.phi012.perseus-lat2', ''],
     ['phi0690.phi003.perseus-lat2', '4.'],
@@ -14,16 +17,17 @@
   M.openLibrary = async function (destination) {
     target = destination === 'literatura' ? destination : 'texto';
     cur = null;
+    savedSelection = null;
     const box = $('#lib');
     box.classList.remove('hidden');
     await loadCatalog();
     if (!box.dataset.built) build(box);
     $('.rtext', box).innerHTML = '';
     $('.rt', box).textContent = target === 'literatura' ? 'Elige una obra: Miles Gloriosus, Eneida IV o Heroida I.' : 'Elige una obra para leerla.';
-    $('[data-act=use]', box).disabled = true;
+    clearSelection();
     drawList();
   };
-  function close() { $('#lib').classList.add('hidden'); }
+  function close() { savedSelection = null; $('#lib').classList.add('hidden'); }
   async function loadCatalog() { cat = await M.call('catalog'); }
 
   function build(box) {
@@ -46,7 +50,7 @@
         <div class="lread">
           <div class="rhead"><div class="rt muted">Elige una obra descargada para leerla.</div>
             <div class="row small"><input type="text" class="rgo" placeholder="Ir a… (p. ej. 1.6)" style="width:150px"> <span class="spacer"></span>
-            <span class="rsel muted">Selecciona con el ratón el fragmento que quieras.</span>
+            <span class="rsel muted">Selecciona el fragmento (en iPad, mantén pulsado y ajusta los marcadores).</span>
             <button class="hbtn primary" data-act="use" disabled>Usar la selección</button></div></div>
           <div class="rtext"></div>
         </div>
@@ -81,12 +85,26 @@
     box.addEventListener('change', (e) => {
       if (e.target.matches('.lrow input[type=checkbox]')) { const i = +e.target.closest('.lrow').dataset.i; if (e.target.checked) st.sel.add(i); else st.sel.delete(i); }
     });
-    document.addEventListener('selectionchange', () => {
-      if ($('#lib').classList.contains('hidden')) return;
-      const r = selRange();
-      const btn = $('[data-act=use]', box);
-      btn.disabled = !r;
-      $('.rsel', box).textContent = r ? `Selección: ${r.cita} (${r.text.split(/\s+/).length} palabras)` : 'Selecciona con el ratón el fragmento que quieras.';
+    // 'selectionchange' se emite también CUANDO Safari borra la selección
+    // al pulsar «Usar». No se descarta la última selección válida por ese motivo.
+    document.addEventListener('selectionchange', rememberSelection);
+    const reader = $('.rtext', box), btnUse = $('[data-act=use]', box);
+    // Capturar ANTES de que el botón provoque pérdida de foco; touchstart
+    // sirve de alternativa a pointerdown en versiones antiguas de iPadOS.
+    btnUse.addEventListener('pointerdown', rememberSelection);
+    btnUse.addEventListener('touchstart', rememberSelection, { passive: true });
+    // En WebKit los marcadores táctiles pueden actualizar el Range después
+    // de touchend; en escritorio la selección queda lista tras mouseup.
+    reader.addEventListener('mouseup', rememberSelection);
+    reader.addEventListener('touchend', () => {
+      setTimeout(rememberSelection, 0);
+      setTimeout(rememberSelection, 100);
+    }, { passive: true });
+    // Una selección nueva sustituye a la anterior. La copia sigue siendo
+    // válida durante el toque del botón, pero no entre obras distintas.
+    reader.addEventListener('pointerdown', () => {
+      savedSelection = null;
+      refreshSelectionHint();
     });
     window.api.on('dl-progress', (d) => { $('.lprog', box).textContent = `Descargando ${d.done} de ${d.total}: ${d.current}`; });
     window.api.on('dl-done', async (d) => {
@@ -114,6 +132,8 @@
 
   async function openWork(it) {
     const box = $('#lib');
+    cur = null;
+    clearSelection();
     $('.rtext', box).innerHTML = '<div class="muted" style="padding:20px">Cargando…</div>';
     const w = await M.call('work', { urn: it.urn });
     if (target === 'literatura') w.lines = w.lines.filter((line) => line.k !== 'h' && (!literature.get(it.urn) || line.c.startsWith(literature.get(it.urn))));
@@ -137,13 +157,43 @@
     const r = $(`#lib .rl[data-k="${k}"]`); if (r) { r.scrollIntoView({ block: 'center' }); r.classList.add('flash'); setTimeout(() => r.classList.remove('flash'), 1200); }
   }
 
-  // Texto y cita de la selección hecha con el ratón dentro del lector
+  // La selección se guarda como texto y cita, nunca como un Range vivo:
+  // en Safari el objeto Range puede mutar cuando la selección desaparece.
+  const hint = 'Selecciona el fragmento (en iPad, mantén pulsado y ajusta los marcadores).';
+  function clearSelection() {
+    savedSelection = null;
+    refreshSelectionHint();
+  }
+  function refreshSelectionHint() {
+    const box = $('#lib');
+    if (!box || !box.dataset.built) return;
+    const btn = $('[data-act=use]', box), info = $('.rsel', box);
+    if (!btn || !info) return;
+    const active = savedSelection && cur && savedSelection.urn === cur.urn ? savedSelection : null;
+    btn.disabled = !active;
+    info.textContent = active
+      ? `Selección: ${active.cita} (${active.text.split(/\s+/).filter(Boolean).length} palabras)`
+      : hint;
+  }
+  function rememberSelection() {
+    const box = $('#lib');
+    if (!box || box.classList.contains('hidden')) return;
+    const range = selRange();
+    if (range && cur) savedSelection = { ...range, urn: cur.urn };
+    refreshSelectionHint();
+  }
+
+  // Texto y cita de la selección hecha dentro del lector (ratón o táctil).
   function selRange() {
     if (!cur) return null;
     const s = window.getSelection(); if (!s || s.isCollapsed || !s.rangeCount) return null;
     const rt = $('#lib .rtext'); const rg = s.getRangeAt(0);
     if (!rt.contains(rg.commonAncestorContainer)) return null;
-    const lines = $$('.rl', rt).filter((d) => s.containsNode(d, true));
+    const lines = $('.rl', rt).filter((d) => {
+      try {
+        return typeof rg.intersectsNode === 'function' ? rg.intersectsNode(d) : s.containsNode(d, true);
+      } catch (_) { return false; }
+    });
     if (!lines.length) return null;
     // texto: solo el de las columnas de texto (sin los números)
     const parts = [];
@@ -163,7 +213,11 @@
     return { text, a, b, cita: P.citeRef(a, b, cur.levels) };
   }
   function useSelection() {
-    const r = selRange(); if (!r) return;
+    // Primero la selección actual; si iPadOS ya la contrajo, usar la copia
+    // capturada al seleccionar o al tocar el botón, solo de la obra activa.
+    const live = selRange();
+    const r = live || (savedSelection && cur && savedSelection.urn === cur.urn ? savedSelection : null);
+    if (!r) { M.toast('Selecciona un fragmento del texto antes de añadirlo.'); return; }
     if (target === 'literatura') {
       M.S.literatura = { texto: r.text, traduccion: '', autor: cur.author, obra: cur.latin, cita: r.cita, urn: cur.urn };
       M.renderEditor(); M.persist(); M.preview(); close();
