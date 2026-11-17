@@ -32,6 +32,41 @@
     })) : null;
   const prefijos = lexical && lexical.prefijos && Array.isArray(lexical.prefijos.items)
     ? lexical.prefijos.items.map((item) => item.prompt) : null;
+  // Conservamos cualquier entrada de la antigua lista de fábrica que no
+  // figure en el repertorio nuevo. No la etiquetamos como fuente docente.
+  const oldDefaults = (name) => {
+    try { return JSON.parse((window.EXDATA || {})['/app/data/listas/' + name + '.json'] || '[]'); }
+    catch (_) { return []; }
+  };
+  const legacyPreverbs = [];
+  if (preverbios) {
+    const byBase = new Map(preverbios.map((row) => [row.base, row]));
+    for (const row of oldDefaults('preverbios')) {
+      const target = byBase.get(row.base);
+      if (!target) {
+        const kept = Object.assign({ legadoExaminator: true }, row);
+        preverbios.push(kept); legacyPreverbs.push(kept.base);
+        byBase.set(kept.base, kept);
+      } else {
+        const seen = new Set(target.compuestos.map((s) => s.toLocaleLowerCase('es')));
+        for (const derivative of (row.compuestos || [])) {
+          if (seen.has(derivative.toLocaleLowerCase('es'))) continue;
+          target.compuestos.push(derivative);
+          seen.add(derivative.toLocaleLowerCase('es'));
+          (target.derivadosLegado = target.derivadosLegado || []).push(derivative);
+        }
+      }
+    }
+  }
+  const legacyPrefixes = [];
+  if (prefijos) {
+    const seen = new Set(prefijos.map((s) => s.toLocaleLowerCase('es')));
+    for (const word of oldDefaults('prefijos')) {
+      const k = word.toLocaleLowerCase('es');
+      if (seen.has(k)) continue;
+      seen.add(k); prefijos.push(word); legacyPrefixes.push(word);
+    }
+  }
 
   // El motor da siempre prioridad a las listas personales guardadas en /datos/listas.
   // Solo sustituimos los valores de fábrica, sin alterar el motor ni el almacenamiento.
@@ -41,5 +76,6 @@
   if (preverbios) window.EXDATA['/app/data/listas/preverbios.json'] = JSON.stringify(preverbios);
   if (prefijos) window.EXDATA['/app/data/listas/prefijos.json'] = JSON.stringify(prefijos);
   window.EXACADEMIC_BANKS = { evolucion, latinismos, preverbios, prefijos,
+    legado: { preverbios: legacyPreverbs, prefijos: legacyPrefixes },
     origen: source.origen, origen_lexico: lexical && lexical.origen };
 })();
