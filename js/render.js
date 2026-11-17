@@ -65,6 +65,9 @@
   ];
   E.fontSize = (S) => { const n = Number(S.tamano ?? 11); return Number.isFinite(n) && n >= 6 && n <= 36 ? n : 11; };
   E.questionSpace = (S) => { const n = Number(S.espacioPreguntas ?? 0.3); return Number.isFinite(n) && n >= 0 && n <= 10 ? n : 0.3; };
+  // S.hueco ya está expresado en centímetros en los archivos .examen antiguos.
+  // Conservarlo evita migraciones y mantiene el mismo espaciado en Word, PDF y vista previa.
+  E.q4Space = (S) => { const n = Number(S.hueco ?? 2.6); return Number.isFinite(n) && n >= 0 && n <= 10 ? n : 2.6; };
   E.questionList = (S) => E.questions.map((q) => S.documento === 'repaso' ? q.replace(/\s*\(\d+p\.\)/g, '') : q);
   E.literatureRef = (L) => [L.autor, L.obra, L.cita].filter(Boolean).join(', ');
   E.fontStack = (f) => `'${f || 'Palatino Linotype'}', 'Palatino Linotype', 'Book Antiqua', Palatino, 'Gentium Book Plus', serif`;
@@ -93,7 +96,7 @@
 .page ol.q { margin: 0; padding-left: 2.1em; }
 .page ol.q > li { font-weight: bold; margin: 0 0 ${E.questionSpace(S)}cm; padding-left: .4em; }
 .page ol.s { list-style: lower-alpha; font-weight: normal; padding-left: 1.6em; margin: 3pt 0 0; }
-.page ol.s > li { font-weight: normal; text-align: justify; padding-left: .4em; margin-bottom: ${S.hueco ?? 2.6}cm; }
+.page ol.s > li { font-weight: normal; text-align: justify; padding-left: .4em; margin-bottom: ${E.q4Space(S)}cm; }
 .page ol.s > li:last-child { margin-bottom: 0; }
 `;
   };
@@ -172,7 +175,7 @@ ${E.pageCss(S)}
     E.questionList(S).forEach((q, k) => {
       body += para([{ t: (k + 1) + '.', b: true }, { t: '\t' }, { t: q, b: true }].map((r) => r.t === '\t' ? Object.assign(r, { tab: true }) : r), `<w:tabs><w:tab w:val="left" w:pos="709"/></w:tabs><w:spacing w:before="0" w:after="${Math.round(E.questionSpace(S) * 567)}"/><w:ind w:left="709" w:hanging="425"/>`);
     });
-    const hue = Math.round((S.hueco ?? 2.6) * 567);
+    const hue = Math.round(E.q4Space(S) * 567);
     E.q4(S).forEach((r, k) => {
       const last = k === 3;
       body += para([{ t: 'abcd'[k] + '.' }, { t: '\t' }].concat(r), `<w:tabs><w:tab w:val="left" w:pos="1134"/></w:tabs><w:spacing w:before="0" w:after="${last ? 0 : hue}"/><w:ind w:left="1134" w:hanging="425"/><w:jc w:val="both"/>`);

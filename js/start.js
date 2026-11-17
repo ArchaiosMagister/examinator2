@@ -42,20 +42,29 @@
       <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
       <div class="field"><label>Espacio entre preguntas (cm)</label><input class="sq" type="number" min="0" max="10" step="0.1"></div>
       <div class="field"><label>Interlineado del texto latino</label><select class="si"><option value="2">doble</option><option value="2.5">2,5</option><option value="3">triple</option><option value="3.5">3,5</option></select></div>
-      <div class="field"><label>Espacio para responder tras cada apartado de la pregunta 4</label><select class="sh"><option value="1.8">pequeño</option><option value="2.6">medio</option><option value="3.5">grande</option></select></div>
+      <div class="field"><label for="q4Space">Espacio entre los apartados de la pregunta 4 (cm)</label><input id="q4Space" class="sh" type="number" min="0" max="10" step="0.05" inputmode="decimal"><span class="small muted">Hueco para responder, de 0 a 10 cm, ajustable de 0,05 en 0,05 cm. Se aplica a vista previa, Word y PDF.</span></div>
       <button class="tbtn sv">Vocabulario preferente…</button><p class="small muted">Los ajustes, el vocabulario y las descargas se guardan en este navegador.</p>`;
     const m = M.modal('Ajustes', html, [{ label: 'Cerrar', primary: true }]);
     const b = m.body;
     b.querySelector('.sz').value = String(S.tamano ?? 11);
     b.querySelector('.sq').value = String(S.espacioPreguntas ?? 0.3);
     b.querySelector('.sv').onclick = () => M.openVocabulary();
-    b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(S.interlineado); b.querySelector('.sh').value = String(S.hueco);
+    b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(S.interlineado); b.querySelector('.sh').value = String(M.Exam.q4Space(S));
     b.addEventListener('change', (e) => {
       if (e.target.classList.contains('sz')) { S.tamano = +e.target.value; M.store.set('tamano', S.tamano); }
       if (e.target.classList.contains('sq')) { const n = +e.target.value; if (!Number.isFinite(n) || n < 0 || n > 10) return; S.espacioPreguntas = n; M.store.set('espacioPreguntas', n); }
       if (e.target.classList.contains('sf')) { S.fuente = e.target.value; M.store.set('fuente', S.fuente); }
       if (e.target.classList.contains('si')) { S.interlineado = +e.target.value; M.store.set('interlineado', S.interlineado); }
-      if (e.target.classList.contains('sh')) { S.hueco = +e.target.value; M.store.set('hueco', S.hueco); }
+      if (e.target.classList.contains('sh')) {
+        const value = e.target.value.trim();
+        const n = Number(value);
+        if (!value || !Number.isFinite(n) || n < 0 || n > 10) {
+          e.target.value = String(M.Exam.q4Space(S));
+          M.toast('Introduce un espacio entre 0 y 10 cm.');
+          return;
+        }
+        S.hueco = n; M.store.set('hueco', n);
+      }
       M.persist(); M.preview();
     });
   }
