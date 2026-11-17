@@ -51,7 +51,7 @@
           <div class="rhead"><div class="rt muted">Elige una obra descargada para leerla.</div>
             <div class="row small"><input type="text" class="rgo" placeholder="Ir a… (p. ej. 1.6)" style="width:150px"> <span class="spacer"></span>
             <span class="rsel muted">Selecciona el fragmento (en iPad, mantén pulsado y ajusta los marcadores).</span>
-            <button class="hbtn primary" data-act="use" disabled>Usar la selección</button></div></div>
+            <button class="hbtn primary" data-act="use">Usar la selección</button></div></div>
           <div class="rtext"></div>
         </div>
       </div>`;
@@ -170,7 +170,10 @@
     const btn = $('[data-act=use]', box), info = $('.rsel', box);
     if (!btn || !info) return;
     const active = savedSelection && cur && savedSelection.urn === cur.urn ? savedSelection : null;
-    btn.disabled = !active;
+    // No deshabilitar el botón: algunos iPad tardan en emitir selectionchange.
+    // Si sigue deshabilitado no recibiríamos ni touchstart para salvar el Range.
+    btn.disabled = false;
+    if (active) btn.classList.remove('no-selection'); else btn.classList.add('no-selection');
     info.textContent = active
       ? `Selección: ${active.cita} (${active.text.split(/\s+/).filter(Boolean).length} palabras)`
       : hint;
