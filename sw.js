@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v16-ios-pdf-text-20261118';
+const VERSION = 'examinator2-v17-ios-pdf-text-palatino-20261118';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
