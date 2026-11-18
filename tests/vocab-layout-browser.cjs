@@ -21,7 +21,7 @@ const server=http.createServer((req,res)=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const url='http://127.0.0.1:'+server.address().port+'/';
   try {
-    for(const [engineName,engine] of [['WebKit',webkit],['Chromium',chromium)]){
+    for(const [engineName,engine] of [['WebKit',webkit],['Chromium',chromium]]){
       const browser=await engine.launch({headless:true});
       try {
         for(const [device,width,height] of [['desktop',1366,850],['iPhone',390,844]]){
