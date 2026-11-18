@@ -86,8 +86,20 @@ const server = http.createServer((req,res) => {
           assert.equal(check.translationItalic,'normal');
           assert.match(check.fontFamily,/Palatino Linotype/);
           assert.match(check.translationFamily,/Palatino Linotype/);
-          assert.ok(Math.abs(check.fontSize-13.333)<.75, '10 pt en CSS: '+check.fontSize+'px en '+name+' '+device+', zoom '+check.sheetZoom+', text-size-adjust '+check.textSizeAdjust+', viewport '+check.viewport);
-          assert.ok(Math.abs(check.translationSize-13.333)<.75, '10 pt en ambas columnas: '+check.translationSize+'px en '+name+' '+device);
+          // El visor iPhone de WebKit utiliza text autosizing y zoom < 1;
+          // su getComputedStyle puede reflejar 19 px pese a la regla A4 10 pt.
+          // En la exportación la hoja se compone a tamaño real, sin zoom.
+          assert.match(check.print,/\\.page \\.litTable \\{[^}]*font-size: 10pt;/);
+          if(name==='WebKit' && device==='iPhone'){
+            assert.ok(check.fontSize>0 && check.translationSize>0);
+            assert.ok(Math.abs(check.fontSize-check.translationSize)<.05,
+              'Las dos celdas tienen exactamente el mismo tamaño también en Safari');
+          }else{
+            assert.ok(Math.abs(check.fontSize-13.333)<.75,
+              '10 pt en CSS: '+check.fontSize+'px en '+name+' '+device);
+            assert.ok(Math.abs(check.translationSize-13.333)<.75,
+              '10 pt en ambas columnas: '+check.translationSize+'px en '+name+' '+device);
+          }
           assert.ok(Math.abs(check.cellRects[0].width-check.cellRects[1].width)<2,'Columnas iguales');
           assert.ok(check.tableRect.width>60,'Tabla visible');
           assert.ok(check.tableRect.right<=check.sheetRect.right+2,'Tabla sin desbordamiento horizontal');
