@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v17-ios-pdf-text-palatino-20261118';
+const VERSION = 'examinator2-v18-ios-print-palatino-20261118';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -23,6 +23,7 @@ const PRECACHE = [
   "./lib/pdfmake.min.js",
   "./lib/pdfmake-vfs.js",
   "./js/pdf-export.js",
+  "./js/print-export.js",
   "./js/datos.js",
   "./js/bancos-datos.js",
   "./js/lexico-bancos-datos.js",
