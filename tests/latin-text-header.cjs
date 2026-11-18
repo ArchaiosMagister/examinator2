@@ -77,7 +77,7 @@ load('js/motor.js');
  for(const out of [html,pdf]){
    assert.match(out,/Examen final de Latín II/);
    assert.match(out,/1\.r trimestre/);
-   assert.match(out,/Poeta prœlium et cælum videt/);
+   assert.match(out,/Poeta <u>prœlium<\/u> et cælum videt/);
    assert.match(out,/Poeta prœlium narrat/);
    assert.ok(!out.includes('<table class="hdr">'),'Cabecera HTML sin tabla');
    assert.match(out,/<div class="hdr"><div class="hdr-row">/);
