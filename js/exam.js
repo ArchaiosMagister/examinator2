@@ -213,7 +213,7 @@
         <h3>Texto de literatura</h3>
         <button class="tbtn" data-act="literatura">Elegir Miles Gloriosus, Eneida IV o Heroida I…</button>
         <p class="small muted">Selecciona el fragmento latino. Después puedes pegar su traducción.</p>
-        <div class="grid3">${[['autor', 'Autor'], ['obra', 'Obra'], ['cita', 'Pasaje']].map(([k, label]) => `<label>${label}<input data-lit="${k}"></label>`).join('')}</div>
+        <div class="grid3 litMeta">${[['autor', 'Autor'], ['obra', 'Obra'], ['cita', 'Pasaje']].map(([k, label]) => `<label>${label}<input data-lit="${k}"></label>`).join('')}</div>
         <label class="full">Texto latino<textarea data-lit="texto" rows="5" spellcheck="false"></textarea></label>
         <label class="full">Traducción<textarea data-lit="traduccion" rows="5" placeholder="Pega aquí la traducción cuando quieras incorporarla."></textarea></label>
       </div>`;
@@ -297,7 +297,19 @@
       if (!r.toks.length) M.toast('No hay ningún ' + CATN[cat] + ' en el texto.');
       renderSubr(); renderWords(); changed();
     }
-    if (act === 'vadd') { S.vocabItems.push({ manual: true, head: '', trad: '', note: '', on: true }); renderVocab(); changed(); const ins = $$('.vlist .vh', $('#editor')); if (ins.length) ins[ins.length - 1].focus(); }
+    if (act === 'vadd') {
+      const k = S.vocabItems.push({ manual: true, head: '', trad: '', note: '', on: true }) - 1;
+      renderVocab(); changed();
+      // La lista está ordenada alfabéticamente: la nueva entrada vacía
+      // NO coincide necesariamente con la última fila visible.
+      const input = $('.vlist .vrow[data-k="' + k + '"] .vh', $('#editor'));
+      if (input) {
+        input.closest('.vrow').classList.add('new-manual');
+        input.addEventListener('input', () => input.closest('.vrow').classList.remove('new-manual'), { once: true });
+        input.focus();
+        input.scrollIntoView({ block: 'nearest' });
+      }
+    }
     if (act === 'vall' || act === 'vnone') { for (const v of S.vocabItems) v.on = act === 'vall'; renderVocab(); renderWords(); changed(); }
     if (act === 'vdel') { const k = +b.dataset.k; S.vocabItems.splice(k, 1); renderVocab(); changed(); }
     if (act === 'vsave') {
@@ -548,8 +560,10 @@
       <input type="text" class="vn" value="${esc(v.note)}" placeholder="aclaración (opcional)">
       <button class="tbtn sm vsave ${v.preferred && !v.eHead && !v.eTrad && !v.eNote ? 'saved' : ''}" data-act="vsave" data-k="${k}" title="Guardar corrección para próximos exámenes en este dispositivo" aria-label="Guardar corrección de ${esc(v.head)}">${v.preferred && !v.eHead && !v.eTrad && !v.eNote ? '✓ Guardada' : 'Guardar'}</button>
       ${v.manual ? `<button class="xbtn" data-act="vdel" data-k="${k}" title="Quitar">×</button>` : `<button class="xbtn" data-act="vreset" data-k="${k}" title="Restablecer la entrada en este examen">↺</button>`}
+      ${(v.manual || v.glosasSeparadas) ? `<label class="vsplitLabel" title="Entrecerrar cada glosa individual: separa traducciones mediante |"><input type="checkbox" class="vsplit" ${v.glosasSeparadas ? 'checked' : ''}> Glosas separadas <span class="vsplitHint">(escribe grande | camino)</span></label>` : ''}
     </div>`).join('');
     box.oninput = (e) => {
+      if (!e.target.matches('.vh, .vt, .vn')) return;
       const row = e.target.closest('.vrow'); if (!row) return;
       const v = S.vocabItems[+row.dataset.k];
       if (e.target.classList.contains('vh')) { v.head = e.target.value; v.eHead = true; }
@@ -560,6 +574,17 @@
       changed();
     };
     box.onchange = (e) => {
+      if (e.target.classList.contains('vsplit')) {
+        const row = e.target.closest('.vrow');
+        if (!row) return;
+        const v = S.vocabItems[+row.dataset.k];
+        if (!v) return;
+        v.glosasSeparadas = e.target.checked;
+        const saveButton = row.querySelector('.vsave');
+        if (saveButton) { saveButton.textContent = 'Guardar'; saveButton.classList.remove('saved'); }
+        changed();
+        return;
+      }
       if (!e.target.classList.contains('von')) return;
       const row = e.target.closest('.vrow'); const v = S.vocabItems[+row.dataset.k];
       v.on = e.target.checked; row.classList.toggle('off', !v.on);
