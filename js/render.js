@@ -248,13 +248,19 @@ ${E.pageCss(S)}
       const last = k === 3;
       body += para([{ t: 'abcd'[k] + '.' }, { t: '\t' }].concat(r), `<w:tabs><w:tab w:val="left" w:pos="1134"/></w:tabs><w:spacing w:before="0" w:after="${last ? 0 : hue}"/><w:ind w:left="1134" w:hanging="425"/><w:jc w:val="both"/>`);
     });
-    if (S.literatura && S.literatura.texto) {
-      const L = S.literatura;
-      body += para([{ t: 'Literatura' + (S.documento === 'repaso' ? '' : ' (2p.)'), b: true }], '<w:spacing w:before="240"/><w:keepNext/>');
-      body += para([{ t: E.literatureRef(L) }], sp0);
-      for (const line of E.literatureLatin(S).split('\n')) body += para([{ t: line, i: true }], sp0);
-      body += para([{ t: 'Traducción', b: true }], '<w:spacing w:before="120"/><w:keepNext/>');
-      for (const line of (L.traduccion || '').split('\n')) body += para([{ t: line }], L.traduccion ? sp0 : '<w:spacing w:after="1701"/>');
+    if (E.hasLiterature(S)) {
+      // Misma numeración, negrita y sangría que las cuatro preguntas anteriores.
+      body += para([{ t: '5.', b: true }, { t: '\t' },
+        { t: E.literatureQuestion(S), b: true }],
+        `<w:tabs><w:tab w:val="left" w:pos="709"/></w:tabs><w:spacing w:before="0" w:after="${Math.round(E.questionSpace(S) * 567)}"/><w:ind w:left="709" w:hanging="425"/><w:keepNext/>`);
+      // 10 pt (20 medios puntos) y Palatino Linotype solo en la tabla.
+      const litFont = '<w:rFonts w:ascii="Palatino Linotype" w:hAnsi="Palatino Linotype" w:cs="Palatino Linotype" w:eastAsia="Palatino Linotype"/><w:sz w:val="20"/><w:szCs w:val="20"/>';
+      const litParagraphs = (content, italic) => String(content || '').split(/\r?\n/)
+        .map((line) => para([{ t: line, i: italic }],
+          '<w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>', litFont)).join('');
+      const half = Math.round(W / 2), rest = W - half;
+      const litCell = (content, width) => `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${content}</w:tc>`;
+      body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders>${bd(4)}<w:insideV w:val="single" w:sz="4" w:color="222222"/></w:tblBorders><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="110" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="110" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${half}"/><w:gridCol w:w="${rest}"/></w:tblGrid><w:tr>${litCell(litParagraphs(E.literatureLatin(S), true), half)}${litCell(litParagraphs(S.literatura.traduccion || '', false), rest)}</w:tr></w:tbl>`;
     }
     body = body.replace(/<w:r><w:t xml:space="preserve">\t<\/w:t><\/w:r>/g, '<w:r><w:tab/></w:r>').replace(/<w:r><w:rPr>(<w:[bi]\/>)*<\/w:rPr><w:t xml:space="preserve">\t<\/w:t><\/w:r>/g, '<w:r><w:tab/></w:r>');
     const sect = `<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1247" w:bottom="1134" w:left="1247" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>`;
