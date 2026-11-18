@@ -2,7 +2,7 @@
 'use strict';
 (function () {
   const { $ } = M;
-  const FONTS = ['Palatino', 'Palatino Linotype', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
+  const FONTS = ['Palatino', 'Palatino Linotype', 'PalemonasMUFI', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
 
   const baseName = () => {
     const S = M.S;
@@ -41,8 +41,8 @@
   function settings() {
     const S = M.S;
     const html = `
-      <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option>${f}</option>`).join('')}</select>
-        <span class="small muted">Palatino y Palatino Linotype se usan si están instaladas; Gentium Book Plus está incluida como alternativa.</span></div>
+      <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option value="${f}">${f === 'PalemonasMUFI' ? 'Palemonas MUFI' : f}</option>`).join('')}</select>
+        <span class="small muted">Palatino y Palemonas MUFI se usan si están instaladas. Gentium Book Plus está incluida como alternativa. En iPad el PDF con texto real usa Roboto Unicode incrustada.</span></div>
       <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
       <div class="field"><label>Espacio entre preguntas (cm)</label><input class="sq" type="number" min="0" max="10" step="0.1"></div>
       <div class="field"><label>Interlineado del texto latino</label><select class="si"><option value="2">doble</option><option value="2.5">2,5</option><option value="3">triple</option><option value="3.5">3,5</option></select></div>
