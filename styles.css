@@ -88,8 +88,8 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
 .vopts { margin-bottom: 6px; }
 .vhint { margin-bottom: 6px; }
 .vlist { max-height: 340px; overflow-y: auto; border: 1px solid var(--rule-2); border-radius: 6px; background: #fff; }
-.vrow { display: grid; grid-template-columns: 22px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .9fr) auto 24px; gap: 4px; align-items: center; padding: 2px 4px; border-bottom: 1px solid var(--rule-2); }
-.vrow .vsave { padding: 3px 6px; font-size: 11px; color: var(--accent); border-color: var(--accent-soft); }
+.vrow { display: grid; grid-template-columns: 22px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .9fr) 90px 24px; gap: 4px; align-items: center; padding: 2px 4px; border-bottom: 1px solid var(--rule-2); }
+.vrow .vsave { width: 90px; min-width: 90px; max-width: 90px; box-sizing: border-box; white-space: nowrap; padding: 3px 4px; font-size: 11px; color: var(--accent); border-color: var(--accent-soft); }
 .vrow .vsave.saved { background: var(--accent-soft); }
 .vsaveHint { margin: 0 0 6px; }
 .vrow input[type=text] { border: 1px solid transparent; background: transparent; padding: 2px 4px; min-width: 0; }
@@ -238,7 +238,7 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
   .srow .sw { min-width: 0; overflow-wrap: anywhere; }
   .qrow .it { min-width: 0; }
   .qrow .fen { min-width: 0; width: 75px; flex: 0 1 75px; }
-  .vrow { grid-template-columns: 24px minmax(0,1fr) auto 25px; gap: 4px; }
+  .vrow { grid-template-columns: 24px minmax(0,1fr) 90px 25px; gap: 4px; }
   .vrow .von { grid-column: 1; grid-row: 1; }
   .vrow .vh { grid-column: 2; grid-row: 1; }
   .vrow .vsave { grid-column: 3; grid-row: 1; }
