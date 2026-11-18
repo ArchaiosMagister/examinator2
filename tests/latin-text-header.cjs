@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
-const ctx = {console,setTimeout,clearTimeout,Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,Buffer};
+const ctx = {console,setTimeout,clearTimeout,Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,Buffer,URL,location:{href:'https://archaiosmagister.github.io/examinator2/'}};
 ctx.window = ctx;
 vm.createContext(ctx);
 const load = (p) => vm.runInContext(fs.readFileSync(path.join(root,p),'utf8'),ctx,{filename:p});
