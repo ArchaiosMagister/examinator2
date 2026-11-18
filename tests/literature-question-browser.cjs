@@ -38,6 +38,8 @@ const server = http.createServer((req,res) => {
             M.S.documento='parcial';
             M.S.fuente='Gentium Book Plus';
             M.S.tamano=14;
+            M.S.hueco=1.25;
+            M.S.espacioPreguntas=0.65;
             M.S.literatura = {
               texto:'Cælum et prœlium.\nPoeta poema narrat.',
               traduccion:'El cielo y la batalla.\nEl poeta relata un poema.',
@@ -71,11 +73,22 @@ const server = http.createServer((req,res) => {
               sheetZoom:getComputedStyle(sheet).zoom,
               textSizeAdjust:getComputedStyle(tds[0]).webkitTextSizeAdjust,
               viewport:innerWidth,
+              q4:document.querySelectorAll('#sheet ol.q > li')[3].className,
+              q4BottomMargin:parseFloat(getComputedStyle(questions[3]).marginBottom),
+              q4Gap:parseFloat(getComputedStyle(questions[3].querySelector('ol.s')).paddingBottom),
+              subGap:parseFloat(getComputedStyle(questions[3].querySelector('ol.s > li')).marginBottom),
               print:M.Exam.printDoc(M.S)
             };
           });
           const sentence='Literatura. Indique el autor y obra a que pertenece el siguiente texto. Contextualice y comente el pasaje. (2p.)';
           assert.equal(check.count,5,name+' '+device+': literatura debe ser pregunta 5');
+          const expectedGap=1.25*96/2.54;
+          assert.match(check.q4,/q4BeforeLiterature/);
+          assert.ok(Math.abs(check.q4Gap-expectedGap)<1,'Último latinismo → pregunta 5: 1,25 cm');
+          assert.ok(Math.abs(check.subGap-check.q4Gap)<1,
+            'Mismo espacio entre las subpreguntas 4a–d y entre 4d y 5');
+          assert.ok(check.q4BottomMargin<1,
+            'No sumar la separación general entre preguntas al espacio de 4d → 5');
           assert.equal(check.title,sentence,'Enunciado completo');
           assert.equal(check.tables,1);
           assert.equal(check.rows,1);
@@ -115,6 +128,13 @@ const server = http.createServer((req,res) => {
           await page.evaluate(()=>{M.S.literatura.texto='';M.preview();});
           await page.waitForFunction(()=>!document.querySelector('#sheet ol.q > li.literatureQuestion'));
           assert.equal(await page.locator('#sheet ol.q > li').count(),4,'La pregunta 5 solo aparece cuando hay texto');
+          const noLitGap=await page.evaluate(()=>{
+            const fourth=document.querySelectorAll('#sheet ol.q > li')[3];
+            return {extra:fourth.classList.contains('q4BeforeLiterature'),
+              padding:parseFloat(getComputedStyle(fourth.querySelector('ol.s')).paddingBottom)};
+          });
+          assert.equal(noLitGap.extra,false,'Sin pregunta 5, no añadir una separación extra');
+          assert.ok(noLitGap.padding<1,'Sin pregunta 5, mantener el hueco final previo');
           assert.equal(errors.length,0,errors.join('; '));
           console.log('OK:',name,device,'pregunta 5, A4, dos columnas, fuente 10pt, anonimato y repaso');
           await context.close();
