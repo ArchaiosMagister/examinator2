@@ -15,6 +15,8 @@
     if (p) done(p); else if (window.api.web) M.toast('Documento de Word descargado.');
   }
   async function exportPdf() {
+    // Garantizar la misma grafía de los textos de literatura en PDF y Word.
+    await M.Exam.prepareLiterature(M.S);
     const p = await window.api.makePdf({ html: M.Exam.printDoc(M.S), defaultName: baseName() + '.pdf' });
     if (p) done(p); else if (window.api.web) M.toast('En la ventana de impresión elige «Guardar como PDF».', 6000);
   }
