@@ -31,6 +31,10 @@
     st.textContent = M.Exam.pageCss(M.S);
     sh.innerHTML = M.Exam.html(M.S);
     fitSheet();
+    const exam = M.S;
+    M.Exam.prepareLiterature(exam).then((changed) => {
+      if (changed && M.S === exam) M.preview();
+    }).catch(() => { /* Si Collatinus no responde, conservar texto sin alterar. */ });
   }, 80);
   function fitSheet() {
     const pv = $('#preview'), sh = $('#sheet');
@@ -129,7 +133,7 @@
   async function setLemma(t, lid) {
     const cd = t.cands.find((c) => c.lid === lid); if (!cd) return;
     const morpho = cd.morphos[0] || '';
-    const info = await M.call('tokenInfo', { lid, morpho });
+    const info = await M.call('tokenInfo', { lid, morpho, word: t.w });
     t.sel = { lid, morpho }; t.lemma = cd.lemma; t.proper = cd.proper;
     if (info) Object.assign(t, info);
     // participio + sum
@@ -332,7 +336,7 @@
       if (uc) cls.push('u', 'u' + uc);
       if (S.vocMode === 'elegir' && t.sel && onLids.has(t.sel.lid)) cls.push('inv');
       if (!t.sel) cls.push('unk');
-      h += `<span class="${cls.join(' ')}" data-i="${t.i}" title="${esc(t.lemma || 'forma desconocida')}">${esc(t.w)}</span>`;
+      h += `<span class="${cls.join(' ')}" data-i="${t.i}" title="${esc(t.lemma || 'forma desconocida')}">${esc(t.lig || t.w)}</span>`;
       pos = t.e;
     }
     h += esc(text.slice(pos));
@@ -555,6 +559,17 @@
     M.S = S;
     M.renderEditor(); M.preview();
     if (S.texto && S.texto !== S.textAnalyzed) M.analyzeNow();
+    else if (S.texto && Array.isArray(S.tokens) &&
+      S.tokens.some((t) => /(ae|oe)/i.test(t.w || '') && t.lig === undefined)) {
+      // Actualización no destructiva de .examen antiguos: no volvemos a
+      // lematizar ni tocamos la selección manual o los subrayados.
+      const tokens = S.tokens, original = S.texto;
+      M.call('ligateTokens', { tokens }).then((words) => {
+        if (M.S !== S || S.texto !== original || S.tokens !== tokens) return;
+        tokens.forEach((t, i) => { if (typeof words[i] === 'string') t.lig = words[i]; });
+        renderWords(); M.preview();
+      }).catch(() => {});
+    }
   };
 })();
 
