@@ -5,15 +5,16 @@
   const P = M.Propose;
   const CATN = { n: 'sustantivo', a: 'adjetivo', p: 'pronombre', v: 'verbo' };
   const QTY = [['modelo', 'vocales en sílaba abierta'], ['todas', 'todas las vocales'], ['largas', 'solo las largas'], ['ninguna', 'sin cantidades']];
+  const DOCS = { parcial: 'Examen parcial de Latín II', final: 'Examen final de Latín II', repaso: 'Texto de repaso' };
 
   M.newExam = function () {
     const S = {
-      v: 1, tipo: 'Examen', asig: M.store.get('asig', 'Latín II'),
+      v: 1, tipo: DOCS.parcial, asig: M.store.get('asig', 'Latín II'), trimestre: M.store.get('trimestre', '1'),
       titulo: '', refAutor: '', refObra: '', refCita: '', source: 'lib', urn: '',
       texto: '', textAnalyzed: '', tokens: [],
       qty: M.store.get('qty', 'modelo'), vocMode: 'elegir', vocabItems: [],
       subr: [], prev: [{ txt: '', n: 3 }, { txt: '', n: 2 }], evol: [], pref: [], latin: [],
-      documento: 'examen', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
+      documento: 'parcial', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
       tamano: M.store.get('tamano', 10.5), espacioPreguntas: M.store.get('espacioPreguntas', 0.3),
       fuente: M.store.get('fuente', 'Palatino Linotype'), interlineado: M.store.get('interlineado', 3), hueco: M.store.get('hueco', 2.6)
     };
@@ -143,10 +144,11 @@
     ed.innerHTML = `
       <div class="card">
         <h3>Cabecera</h3>
-        <label>Documento<select class="documentMode"><option value="examen">Examen</option><option value="repaso">Texto de repaso</option></select></label>
+        <label>Tipo de documento<select class="documentMode"><option value="parcial">Examen parcial</option><option value="final">Examen final</option><option value="repaso">Texto de repaso</option></select></label>
         <div class="grid2">
-          <label>Primera casilla<input type="text" data-k="tipo"></label>
-          <label>Materia<input type="text" data-k="asig"></label>
+          <label>Primera casilla (editable)<input type="text" data-k="tipo"></label>
+          <label class="trimestreField">Trimestre<select class="trimestre"><option value="1">1.r trimestre</option><option value="2">2.º trimestre</option><option value="3">3.r trimestre</option></select></label>
+          <label class="asigField">Materia (textos de repaso)<input type="text" data-k="asig"></label>
         </div>
       </div>
       <div class="card">
@@ -202,12 +204,29 @@
       inp.value = S.literatura[inp.dataset.lit] || '';
       inp.oninput = () => { S.literatura[inp.dataset.lit] = inp.value; changed(); };
     }
-    $('.documentMode', ed).value = S.documento || 'examen';
+    // Los archivos .examen anteriores guardaban documento='examen' y
+    // tipo='Examen'/'Repaso'. Conservar títulos personalizados.
+    if (!DOCS[S.documento]) S.documento = 'parcial';
+    if (!S.tipo || S.tipo === 'Examen' || S.tipo === 'Repaso') S.tipo = DOCS[S.documento];
+    if (!['1', '2', '3'].includes(String(S.trimestre))) S.trimestre = '1';
+    const updateHeaderControls = () => {
+      $('.trimestreField', ed).classList.toggle('hidden', S.documento === 'repaso');
+      $('.asigField', ed).classList.toggle('hidden', S.documento !== 'repaso');
+    };
+    $('.documentMode', ed).value = S.documento;
+    $('.trimestre', ed).value = String(S.trimestre);
+    updateHeaderControls();
     $('.documentMode', ed).onchange = (e) => {
-      const previous = S.documento === 'repaso' ? 'Repaso' : 'Examen';
+      const previous = DOCS[S.documento];
       S.documento = e.target.value;
-      if (!S.tipo || S.tipo === previous) S.tipo = S.documento === 'repaso' ? 'Repaso' : 'Examen';
+      if (!S.tipo || S.tipo === previous) S.tipo = DOCS[S.documento];
       $('[data-k="tipo"]', ed).value = S.tipo;
+      updateHeaderControls();
+      changed();
+    };
+    $('.trimestre', ed).onchange = (e) => {
+      S.trimestre = e.target.value;
+      M.store.set('trimestre', S.trimestre);
       changed();
     };
     for (const inp of $$('[data-k]', ed)) {
