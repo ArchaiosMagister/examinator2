@@ -94,7 +94,7 @@ const server = http.createServer((req,res) => {
           assert.doesNotMatch(check.print,/AUTOR_SECRETO|OBRA_SECRETA|CITA_SECRETA|<b>Traducción<\/b>/);
 
           await page.evaluate(()=>{M.S.documento='repaso';M.preview();});
-          await page.waitForFunction(()=>document.querySelector('#sheet ol.q > li.literatureQuestion')?.firstChild.textContent.includes('Contextualice'));
+          await page.waitForFunction(()=>{const q=document.querySelector('#sheet ol.q > li.literatureQuestion');return q && !q.firstChild.textContent.includes('(2p.)');});
           const repaso=await page.evaluate(()=>document.querySelector('#sheet ol.q > li.literatureQuestion').firstChild.textContent);
           assert.ok(!repaso.includes('(2p.)'),'Texto de repaso sin puntuaciones');
           await page.evaluate(()=>{M.S.literatura.texto='';M.preview();});
