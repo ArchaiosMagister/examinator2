@@ -10,12 +10,14 @@
     const text = S.texto || '';
     const under = new Set();
     for (const s of S.subr || []) for (const i of s.toks || []) under.add(i);
-    const toks = (S.tokens || []).filter((t) => under.has(t.i)).sort((a, b) => a.s - b.s);
+    // Todos los tokens, no solo los subrayados: la grafía æ/œ es visible
+    // también en las palabras que no formen parte del análisis morfológico.
+    const toks = (S.tokens || []).slice().sort((a, b) => a.s - b.s);
     const runs = []; let pos = 0;
     for (const t of toks) {
       if (t.s < pos || t.e > text.length || text.slice(t.s, t.e) !== t.w) continue;
       if (t.s > pos) runs.push({ t: text.slice(pos, t.s) });
-      runs.push({ t: t.w, u: true });
+      runs.push({ t: t.lig || t.w, u: under.has(t.i) });
       pos = t.e;
     }
     if (pos < text.length) runs.push({ t: text.slice(pos) });
@@ -28,6 +30,27 @@
     }
     return out;
   };
+  // La literatura mantiene intacto el texto que el docente pega o
+  // selecciona. La grafía con ligaduras se calcula y guarda solo en memoria.
+  const latinLiteratureCache = new WeakMap();
+  E.literatureLatin = (S) => {
+    const L = S.literatura;
+    if (!L || !L.texto) return '';
+    const hit = latinLiteratureCache.get(L);
+    return hit && hit.source === L.texto ? hit.value : L.texto;
+  };
+  E.prepareLiterature = async (S) => {
+    const L = S.literatura;
+    if (!L || !L.texto) return false;
+    const source = L.texto;
+    const hit = latinLiteratureCache.get(L);
+    if (hit && hit.source === source) return false;
+    const result = await M.call('ligateText', { text: source });
+    if (S.literatura !== L || L.texto !== source) return false;
+    latinLiteratureCache.set(L, { source, value: result });
+    return result !== source;
+  };
+
   E.vocabList = function (S) {
     const out = (S.vocabItems || []).filter((v) => v.on);
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
@@ -137,7 +160,7 @@ ${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) 
 <ol class="q">
 ${E.questionList(S).map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
 </ol>
-${S.literatura && S.literatura.texto ? `<section class="literature"><h3>Literatura${S.documento === 'repaso' ? '' : ' (2p.)'}</h3><p>${esc(E.literatureRef(S.literatura))}</p><div class="litLatin">${esc(S.literatura.texto)}</div><p><b>Traducción</b></p><div class="litTranslation">${esc(S.literatura.traduccion || '')}</div></section>` : ''}
+${S.literatura && S.literatura.texto ? `<section class="literature"><h3>Literatura${S.documento === 'repaso' ? '' : ' (2p.)'}</h3><p>${esc(E.literatureRef(S.literatura))}</p><div class="litLatin">${esc(E.literatureLatin(S))}</div><p><b>Traducción</b></p><div class="litTranslation">${esc(S.literatura.traduccion || '')}</div></section>` : ''}
 </div>`;
   };
   E.printDoc = function (S) {
@@ -161,6 +184,7 @@ ${E.pageCss(S)}
   };
   const para = (runs, ppr, base) => `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${runs.map((r) => run(r, base)).join('')}</w:p>`;
   E.docx = async function (S) {
+    await E.prepareLiterature(S);
     const font = S.fuente || 'Palatino Linotype';
     const W = 9354; // ancho útil en twips (A4 con márgenes de 2,2 cm)
     const bd = (sz) => `<w:top w:val="single" w:sz="${sz}" w:color="222222"/><w:left w:val="single" w:sz="${sz}" w:color="222222"/><w:bottom w:val="single" w:sz="${sz}" w:color="222222"/><w:right w:val="single" w:sz="${sz}" w:color="222222"/>`;
@@ -207,7 +231,7 @@ ${E.pageCss(S)}
       const L = S.literatura;
       body += para([{ t: 'Literatura' + (S.documento === 'repaso' ? '' : ' (2p.)'), b: true }], '<w:spacing w:before="240"/><w:keepNext/>');
       body += para([{ t: E.literatureRef(L) }], sp0);
-      for (const line of L.texto.split('\n')) body += para([{ t: line, i: true }], sp0);
+      for (const line of E.literatureLatin(S).split('\n')) body += para([{ t: line, i: true }], sp0);
       body += para([{ t: 'Traducción', b: true }], '<w:spacing w:before="120"/><w:keepNext/>');
       for (const line of (L.traduccion || '').split('\n')) body += para([{ t: line }], L.traduccion ? sp0 : '<w:spacing w:after="1701"/>');
     }
