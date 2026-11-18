@@ -99,7 +99,7 @@
     for (const lid of lids) {
       if (old.has(lid)) { items.push(old.get(lid)); continue; }
       const e = fm.get(lid); if (!e) continue;
-      items.push({ lid, head: e.head, trad: e.trad, note: e.note, proper: e.proper, preferred: !!e.preferred, on: S.vocMode === 'todo' || !!e.proper });
+      items.push({ lid, head: e.head, trad: e.trad, note: e.note, proper: e.proper, preferred: !!e.preferred, glosasSeparadas: e.glosasSeparadas === true, on: S.vocMode === 'todo' || !!e.proper });
     }
     for (const v of S.vocabItems || []) if (v.manual) items.push(v);
     const unknown = new Set();
@@ -124,6 +124,7 @@
       if (!v.eTrad) v.trad = e.trad;
       if (!v.eNote) v.note = e.note;
       v.preferred = !!e.preferred;
+      if (!v.glosasSeparadas && e.glosasSeparadas) v.glosasSeparadas = true;
     }
     S.vocabItems = S.vocabItems.filter((v) => !v.customWord);
     await rebuildVocab(false, S);
