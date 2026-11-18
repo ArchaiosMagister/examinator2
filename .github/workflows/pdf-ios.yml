@@ -22,3 +22,5 @@ jobs:
           apt-get install -y --no-install-recommends poppler-utils
       - name: Verificar PDF vectorial Unicode en iPad y estabilidad del vocabulario
         run: node tests/ios-pdf-browser.cjs
+      - name: Probar vista imprimible Palatino con WebKit y Chromium
+        run: node tests/print-browser.cjs
