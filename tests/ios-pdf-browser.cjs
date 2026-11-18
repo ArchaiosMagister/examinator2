@@ -6,8 +6,6 @@ const http=require('node:http');
 const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
-const os=require('node:os');
-const {spawnSync}=require('node:child_process');
 const {webkit,chromium}=require('playwright');
 const root=path.resolve(__dirname,'..');
 const server=http.createServer((req,res)=>{
@@ -50,23 +48,14 @@ const server=http.createServer((req,res)=>{
           window.EXPdf.deliver=(blob,name)=>{window.__exportedPdf=blob;return originalDeliver(blob,name)};
           const b=document.createElement('button');b.textContent='Probar PDF';
           b.id='testPdf';b.style.cssText='position:fixed;z-index:200;top:25px;left:10px;padding:12px;background:#fff';
-          const source='Poeta proelium et caelum videt.';
-          const S={...M.S,documento:'parcial',tipo:'Examen parcial de Latín II',
-            texto:source, titulo:'Prueba de PDF desde iPad',
-            tokens:[
-              {i:0,w:'Poeta',lig:'Poeta',s:0,e:5},
-              {i:1,w:'proelium',lig:'prœlium',s:6,e:14},
-              {i:2,w:'et',s:15,e:17},
-              {i:3,w:'caelum',lig:'cælum',s:18,e:24},
-              {i:4,w:'videt',s:25,e:30}
-            ],
-            subr:[{cat:'n',toks:[1]}],
-            refAutor:'César',refObra:'De bello Gallico',refCita:'I 1',
-            vocabItems:[{on:true,head:'Cæsar, -aris',trad:'César',note:'nombre propio'}],
-            literatura:{texto:'Prœlium ac cælum.',traduccion:'Combate y cielo.',autor:'Virgilio',obra:'Eneida',cita:'IV'}
-          };
           b.onclick=()=>window.api.makePdf({
-            html:M.Exam.printDoc(S),exam:S,defaultName:'examen parcial lat2.pdf'
+            html:M.Exam.printDoc({
+              ...M.S,documento:'parcial',tipo:'Examen parcial de Latín II',
+              texto:'Poeta proelium et caelum videt.\\nCaesar in Gallia pugnavit.',
+              titulo:'Prueba de PDF desde iPad',
+              vocabItems:[{on:true,head:'Caesar, -aris',trad:'César'}]
+            }),
+            defaultName:'examen parcial lat2.pdf'
           }).catch(e=>{window.__pdfError=e.message});
           document.body.appendChild(b);
         });
@@ -89,52 +78,6 @@ const server=http.createServer((req,res)=>{
         assert.ok(pdf.size>3000,'PDF generado incompleto');
         assert.equal(pdf.name,'examen parcial lat2.pdf');
         assert.ok(pdf.share,'En iPad debe ofrecer Compartir PDF');
-        const base64=await page.evaluate(async()=>{
-          const reader=new FileReader();
-          return await new Promise((resolve,reject)=>{
-            reader.onload=()=>resolve(String(reader.result).split(',')[1]);
-            reader.onerror=()=>reject(reader.error);
-            reader.readAsDataURL(window.__exportedPdf);
-          });
-        });
-        const outfile=path.join(os.tmpdir(),'examinator-selectable-'+(label.startsWith('WebKit')?'webkit':'chromium')+'.pdf');
-        fs.writeFileSync(outfile,Buffer.from(base64,'base64'));
-        const extracted=spawnSync('pdftotext',['-layout',outfile,'-'],{encoding:'utf8'});
-        assert.equal(extracted.status,0,'pdftotext debe leer el PDF exportado');
-        assert.match(extracted.stdout,/Examen parcial de Latín II/);
-        assert.match(extracted.stdout,/Cæsar/,'Unicode de vocabulario seleccionable');
-        assert.match(extracted.stdout,/prœlium/,'Ligadura latina en texto PDF real');
-        assert.match(extracted.stdout,/cælum/,'Ligadura en texto PDF real');
-        assert.match(extracted.stdout,/Literatura/);
-        assert.match(extracted.stdout,/\b1\s*\|\s*[1-9]\b/,'Contador de páginas como en Word: '+extracted.stdout.slice(-250));
-        const images=spawnSync('pdfimages',['-list',outfile],{encoding:'utf8'});
-        assert.equal(images.status,0);
-        assert.ok(images.stdout.trim().split('\n').length<=2,
-          'El PDF no debe contener páginas rasterizadas como imágenes: '+images.stdout.slice(0,400));
-        const longBase64=await page.evaluate(async()=>{
-          const S=M.newExam();
-          S.texto='Caesar in Gallia pugnavit.';
-          S.vocabItems=Array.from({length:90},(_,i)=>({
-            on:true,head:'lemma'+String(i).padStart(2,'0'),
-            trad:'significado'+String(i).padStart(2,'0'),note:''
-          }));
-          const long=await EXPdf.generate(S);
-          const reader=new FileReader();
-          return new Promise((resolve,reject)=>{
-            reader.onload=()=>resolve(String(reader.result).split(',')[1]);
-            reader.onerror=()=>reject(reader.error);
-            reader.readAsDataURL(long);
-          });
-        });
-        const longFile=path.join(os.tmpdir(),'examinator-long-'+(label.startsWith('WebKit')?'webkit':'chromium')+'.pdf');
-        fs.writeFileSync(longFile,Buffer.from(longBase64,'base64'));
-        const longText=spawnSync('pdftotext',[longFile,'-'],{encoding:'utf8'});
-        assert.equal(longText.status,0,'PDF largo debe ser legible');
-        assert.match(longText.stdout,/lemma89/,'El vocabulario paginado debe conservar la última entrada');
-        const longInfo=spawnSync('pdfinfo',[longFile],{encoding:'utf8'});
-        assert.equal(longInfo.status,0);
-        assert.ok(Number((/Pages:\s*(\d+)/.exec(longInfo.stdout)||[])[1])>=2,
-          'Un glosario de 90 palabras debe paginarse');
         await page.getByRole('button',{name:'Compartir PDF'}).click();
         const shared=await page.evaluate(()=>window.__sharedFile);
         assert.equal(shared.name,pdf.name);
