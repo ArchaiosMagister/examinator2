@@ -52,6 +52,12 @@
   function settings() {
     const S = M.S;
     const html = `
+      <div class="field"><label for="themeMode">Apariencia</label>
+        <select id="themeMode" class="stheme">
+          <option value="light">Claro</option><option value="dark">Oscuro</option><option value="oled">OLED (negro puro)</option>
+        </select>
+        <span class="small muted">Solo cambia la interfaz. La hoja A4 y los documentos Word/PDF mantienen sus colores.</span>
+      </div>
       <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option>${f}</option>`).join('')}</select>
         <span class="small muted">Palatino y Palatino Linotype se usan si están instaladas; Gentium Book Plus está incluida como alternativa.</span></div>
       <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
@@ -61,11 +67,16 @@
       <button class="tbtn sv">Vocabulario preferente…</button><p class="small muted">Los ajustes, el vocabulario y las descargas se guardan en este navegador.</p>`;
     const m = M.modal('Ajustes', html, [{ label: 'Cerrar', primary: true }]);
     const b = m.body;
+    b.querySelector('.stheme').value = window.EXTheme.current();
     b.querySelector('.sz').value = String(S.tamano ?? 11);
     b.querySelector('.sq').value = String(S.espacioPreguntas ?? 0.3);
     b.querySelector('.sv').onclick = () => M.openVocabulary();
     b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(S.interlineado); b.querySelector('.sh').value = String(M.Exam.q4Space(S));
     b.addEventListener('change', (e) => {
+      if (e.target.classList.contains('stheme')) {
+        window.EXTheme.set(e.target.value);
+        return; // Apariencia global, no modifica el examen ni la vista previa.
+      }
       if (e.target.classList.contains('sz')) { S.tamano = +e.target.value; M.store.set('tamano', S.tamano); }
       if (e.target.classList.contains('sq')) { const n = +e.target.value; if (!Number.isFinite(n) || n < 0 || n > 10) return; S.espacioPreguntas = n; M.store.set('espacioPreguntas', n); }
       if (e.target.classList.contains('sf')) { S.fuente = e.target.value; M.store.set('fuente', S.fuente); }

@@ -1,4 +1,4 @@
-name: Examinator2 — etiquetar y publicar 1.0.0
+name: Examinator2 — etiquetar versiones estables
 on:
   workflow_run:
     workflows: ["Examinator2 — PDF iPad y maquetación de vocabulario"]
@@ -14,7 +14,7 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    concurrency: release-examinator2-v1
+    concurrency: release-examinator2
     steps:
       - name: Obtener la revisión verificada
         uses: actions/checkout@v4
@@ -29,7 +29,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          test "$(cat VERSION 2>/dev/null)" = "1.0.0"
+          VERSION="$(cat VERSION 2>/dev/null)"
+          test -f "RELEASE-${VERSION}.md"
           for attempt in $(seq 1 36); do
             RUNS="$(gh api "repos/${REPO}/actions/runs?head_sha=${SHA}&per_page=100")"
             STATUS="$(echo "$RUNS" | jq -r --arg sha "$SHA" '
@@ -46,17 +47,19 @@ jobs:
           echo "No se confirmó la publicación y la regresión del mismo commit."
           exit 1
 
-      - name: Crear etiqueta y publicación de GitHub 1.0.0
+      - name: Crear etiqueta y publicación del commit verificado
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.workflow_run.head_sha }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if gh release view v1.0.0 --repo "$REPO" >/dev/null 2>&1; then
-            echo "La versión v1.0.0 ya está publicada, no duplicar."
+          VERSION="$(cat VERSION)"
+          test -f "RELEASE-${VERSION}.md"
+          if gh release view "v${VERSION}" --repo "$REPO" >/dev/null 2>&1; then
+            echo "La versión v${VERSION} ya está publicada, no duplicar."
             exit 0
           fi
-          gh release create v1.0.0 --repo "$REPO" --target "$SHA" \
-            --title "Examinator2 1.0.0 — versión estable" \
-            --notes-file RELEASE-1.0.0.md --latest
+          gh release create "v${VERSION}" --repo "$REPO" --target "$SHA" \
+            --title "Examinator2 ${VERSION}" \
+            --notes-file "RELEASE-${VERSION}.md" --latest
