@@ -199,14 +199,15 @@ function analyze({ text, noModel }) {
     }
     if (best) { const g = [t.i, best.i].sort((a, b) => a - b); t.group = g; best.group = g; best.aux = true; }
   }
+  for (const t of tokens) if (t.sel) t.lig = latinWordLigatures(t.w, t.sel.lid);
   return tokens;
 }
 
 // Cambiar el lema elegido para una palabra
-function tokenInfo({ lid, morpho }) {
+function tokenInfo({ lid, morpho, word }) {
   const lem = byUid.get(lid);
   if (!lem) return null;
-  return { cat: X.catOf(lem.pos, morpho), rows: preverbRows(lem), sum: X.plain(X.headOf(lem)) === 'sum', lplain: X.plain(X.headOf(lem)).replace(/\d+$/, '') };
+  return { cat: X.catOf(lem.pos, morpho), rows: preverbRows(lem), sum: X.plain(X.headOf(lem)) === 'sum', lplain: X.plain(X.headOf(lem)).replace(/\d+$/, ''), lig: latinWordLigatures(word || '', lid) };
 }
 
 /* ---------- grafía de diptongos del vocabulario ----------
@@ -251,6 +252,59 @@ function vocabLigatures(display, full, lemma) {
     } else out.push(dest[i]);
   }
   return out.join('').normalize('NFC');
+}
+
+/* ---------- diptongos en textos latinos ----------
+ * Solo donde las formas flexionadas de Collatinus confirman la grafía.
+ * Preservamos el texto fuente y sus índices; esta transformación es visual.
+ * Si varias formas del mismo lema discrepan, no sustituimos nada.
+ */
+function latinWordLigatures(word, lid) {
+  if (!/(ae|oe)/i.test(String(word || '')) || !lid) return word;
+  const lem = byUid.get(lid);
+  if (!lem) return word;
+  const candidates = L().analyse(word).filter((a) => a.lid === lid);
+  if (!candidates.length) return word;
+  const split = (s) => {
+    const out = [];
+    for (const ch of String(s).normalize('NFD')) {
+      if (/[\u0300-\u036f]/u.test(ch) && out.length) out[out.length - 1] += ch;
+      else out.push(ch);
+    }
+    return out;
+  };
+  const align = (form) => {
+    const input = split(word), source = split(form);
+    if (input.length !== source.length ||
+        input.some((ch, i) => X.plain(ch) !== X.plain(source[i]))) return null;
+    // Conservamos la ortografía del autor (u/v, mayúsculas), solo se
+    // trasladan las cantidades prosódicas del paradigma de Collatinus.
+    return source.map((ch, i) =>
+      input[i].replace(/[\u0300-\u036f]/gu, '') +
+      (ch.normalize('NFD').match(/[\u0300-\u036f]/gu) || []).join('')
+    ).join('').normalize('NFC');
+  };
+  const results = [];
+  for (const candidate of candidates) for (const form of candidate.formes) {
+    const original = form.grq + (form.enclitique || '');
+    const marked = align(original);
+    if (marked) results.push(vocabLigatures(word, marked, X.headOf(lem)));
+  }
+  if (!results.length || results.some((x) => x !== results[0])) return word;
+  return results[0];
+}
+
+function ligateText({ text }) {
+  text = String(text || '');
+  if (!text || !/(ae|oe)/i.test(text)) return text;
+  const tokens = analyze({ text, noModel: true });
+  let out = '', pos = 0;
+  for (const t of tokens) {
+    if (t.s < pos || text.slice(t.s, t.e) !== t.w) continue;
+    out += text.slice(pos, t.s) + (t.lig || t.w);
+    pos = t.e;
+  }
+  return out + text.slice(pos);
 }
 
 /* ---------- vocabulario ---------- */
@@ -333,7 +387,7 @@ function work({ urn }) {
 const api = {
   status() { return { dataRoot }; },
   warm() { L(); preverbIndex(); return true; },
-  analyze, tokenInfo, vocabEntries, lookup,
+  analyze, tokenInfo, vocabEntries, lookup, ligateText,
   lists() { const o = {}; for (const n of LIST_NAMES) o[n] = readList(n); return o; },
   saveList({ name, data }) {
     if (!LIST_NAMES.includes(name)) throw new Error('lista desconocida');
