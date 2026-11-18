@@ -1,0 +1,65 @@
+name: Examinator2 — etiquetar versiones estables
+on:
+  workflow_run:
+    workflows: ["Examinator2 — PDF iPad y maquetación de vocabulario"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency: release-examinator2
+    steps:
+      - name: Obtener la revisión verificada
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Comprobar que regresión y publicación están completadas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="$(cat VERSION 2>/dev/null)"
+          test -f "RELEASE-${VERSION}.md"
+          for attempt in $(seq 1 36); do
+            RUNS="$(gh api "repos/${REPO}/actions/runs?head_sha=${SHA}&per_page=100")"
+            STATUS="$(echo "$RUNS" | jq -r --arg sha "$SHA" '
+              [.workflow_runs[] | select(.head_sha == $sha) |
+                select(.name == "Examinator2 — PWA y regresión" or .name == "pages build and deployment") |
+                .name + ":" + (.conclusion // .status)] | unique | join(";")')"
+            echo "Comprobaciones actuales: $STATUS"
+            if echo "$STATUS" | grep -q 'Examinator2 — PWA y regresión:failure'; then exit 1; fi
+            if echo "$STATUS" | grep -q 'pages build and deployment:failure'; then exit 1; fi
+            if echo "$STATUS" | grep -q 'Examinator2 — PWA y regresión:success' &&
+               echo "$STATUS" | grep -q 'pages build and deployment:success'; then exit 0; fi
+            sleep 10
+          done
+          echo "No se confirmó la publicación y la regresión del mismo commit."
+          exit 1
+
+      - name: Crear etiqueta y publicación del commit verificado
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="$(cat VERSION)"
+          test -f "RELEASE-${VERSION}.md"
+          if gh release view "v${VERSION}" --repo "$REPO" >/dev/null 2>&1; then
+            echo "La versión v${VERSION} ya está publicada, no duplicar."
+            exit 0
+          fi
+          gh release create "v${VERSION}" --repo "$REPO" --target "$SHA" \
+            --title "Examinator2 ${VERSION}" \
+            --notes-file "RELEASE-${VERSION}.md" --latest
