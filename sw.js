@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v1.0.0-20261118';
+const VERSION = 'examinator2-v1.0.1-themes-20261118';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -10,6 +10,7 @@ const PRECACHE = [
   "./icon-192.png",
   "./icono.svg",
   "./styles.css",
+  "./js/theme.js",
   "./fonts.css",
   "./fonts/gentium-book-plus-latin-400-italic.woff2",
   "./fonts/gentium-book-plus-latin-400-normal.woff2",
