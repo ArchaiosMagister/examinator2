@@ -111,6 +111,30 @@ const server=http.createServer((req,res)=>{
         assert.equal(images.status,0);
         assert.ok(images.stdout.trim().split('\n').length<=2,
           'El PDF no debe contener páginas rasterizadas como imágenes: '+images.stdout.slice(0,400));
+        const longBase64=await page.evaluate(async()=>{
+          const S=M.newExam();
+          S.texto='Caesar in Gallia pugnavit.';
+          S.vocabItems=Array.from({length:90},(_,i)=>({
+            on:true,head:'lemma'+String(i).padStart(2,'0'),
+            trad:'significado'+String(i).padStart(2,'0'),note:''
+          }));
+          const long=await EXPdf.generate(S);
+          const reader=new FileReader();
+          return new Promise((resolve,reject)=>{
+            reader.onload=()=>resolve(String(reader.result).split(',')[1]);
+            reader.onerror=()=>reject(reader.error);
+            reader.readAsDataURL(long);
+          });
+        });
+        const longFile=path.join(os.tmpdir(),'examinator-long-'+(label.startsWith('WebKit')?'webkit':'chromium')+'.pdf');
+        fs.writeFileSync(longFile,Buffer.from(longBase64,'base64'));
+        const longText=spawnSync('pdftotext',[longFile,'-'],{encoding:'utf8'});
+        assert.equal(longText.status,0,'PDF largo debe ser legible');
+        assert.match(longText.stdout,/lemma89/,'El vocabulario paginado debe conservar la última entrada');
+        const longInfo=spawnSync('pdfinfo',[longFile],{encoding:'utf8'});
+        assert.equal(longInfo.status,0);
+        assert.ok(Number((/Pages:\s*(\d+)/.exec(longInfo.stdout)||[])[1])>=2,
+          'Un glosario de 90 palabras debe paginarse');
         await page.getByRole('button',{name:'Compartir PDF'}).click();
         const shared=await page.evaluate(()=>window.__sharedFile);
         assert.equal(shared.name,pdf.name);
