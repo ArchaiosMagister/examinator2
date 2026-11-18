@@ -44,6 +44,8 @@ const server=http.createServer((req,res)=>{
         // Interacción explícita dentro del documento para simular toque iPad
         // sin depender del desbordamiento previo de la cabecera de escritorio.
         await page.evaluate(()=>{
+          const originalDeliver=window.EXPdf.deliver;
+          window.EXPdf.deliver=(blob,name)=>{window.__exportedPdf=blob;return originalDeliver(blob,name)};
           const b=document.createElement('button');b.textContent='Probar PDF';
           b.id='testPdf';b.style.cssText='position:fixed;z-index:200;top:25px;left:10px;padding:12px;background:#fff';
           b.onclick=()=>window.api.makePdf({
@@ -62,7 +64,9 @@ const server=http.createServer((req,res)=>{
         const pdf=await page.evaluate(async()=>{
           if(window.__pdfError)throw Error(window.__pdfError);
           const a=document.querySelector('.pdf-download-link');
-          const bytes=new Uint8Array(await(await fetch(a.href)).arrayBuffer());
+          // WebKit de pruebas bloquea fetch(blob:), aunque el enlace PDF
+          // esté presente. Validar los bytes producidos antes de crear URL.
+          const bytes=new Uint8Array(await window.__exportedPdf.arrayBuffer());
           return {
             name:a.getAttribute('download'),
             size:bytes.length,
