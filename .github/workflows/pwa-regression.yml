@@ -20,7 +20,7 @@ jobs:
           node --check scripts/check-deployed-assets.cjs
       - name: Regresión del motor, documentos y biblioteca
         run: node tests/regression.cjs
-      - name: Estabilidad 1.0: análisis concurrente, archivos y configuración
+      - name: "Estabilidad 1.0: análisis concurrente, archivos y configuración"
         run: node tests/stability-1.0.cjs
       - name: Diptongos æ/œ y excepciones filológicas
         run: node tests/vocab-ligatures.cjs
