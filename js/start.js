@@ -2,7 +2,7 @@
 'use strict';
 (function () {
   const { $ } = M;
-  const FONTS = ['Palatino', 'Palatino Linotype', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
+  const FONTS = ['Palatino', 'Palatino Linotype', 'PalemonasMUFI', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
 
   const baseName = () => {
     const S = M.S;
@@ -17,7 +17,7 @@
   async function exportPdf() {
     // Garantizar la misma grafía de los textos de literatura en PDF y Word.
     await M.Exam.prepareLiterature(M.S);
-    const p = await window.api.makePdf({ html: M.Exam.printDoc(M.S), defaultName: baseName() + '.pdf' });
+    const p = await window.api.makePdf({ html: M.Exam.printDoc(M.S), exam: M.S, defaultName: baseName() + '.pdf' });
     if (p && p.prepared) return; // En iPad: diálogo con enlace y compartir PDF ya mostrado.
     if (p) done(p);
     else if (window.api.web) M.toast('En el diálogo de impresión elige «Guardar como PDF».', 6000);
@@ -41,8 +41,8 @@
   function settings() {
     const S = M.S;
     const html = `
-      <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option>${f}</option>`).join('')}</select>
-        <span class="small muted">Palatino y Palatino Linotype se usan si están instaladas; Gentium Book Plus está incluida como alternativa.</span></div>
+      <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option value="${f}">${f === 'PalemonasMUFI' ? 'Palemonas MUFI' : f}</option>`).join('')}</select>
+        <span class="small muted">Palatino y Palemonas MUFI se usan si están instaladas. Gentium Book Plus está incluida como alternativa. El PDF directo de iPad usa Roboto Unicode; «Imprimir / PDF» utiliza la fuente local (Palatino cuando está disponible).</span></div>
       <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
       <div class="field"><label>Espacio entre preguntas (cm)</label><input class="sq" type="number" min="0" max="10" step="0.1"></div>
       <div class="field"><label>Interlineado del texto latino</label><select class="si"><option value="2">doble</option><option value="2.5">2,5</option><option value="3">triple</option><option value="3.5">3,5</option></select></div>
@@ -82,6 +82,11 @@
     $('#btnSettings').onclick = settings;
     $('#btnDocx').onclick = () => exportDocx().catch((e) => M.toast('Error: ' + e.message, 6000));
     $('#btnPdf').onclick = () => exportPdf().catch((e) => M.toast('Error: ' + e.message, 6000));
+    // No await: Safari necesita que window.print() nazca de un toque real.
+    $('#btnPrintPdf').onclick = () => {
+      try { window.EXPrint.open(M.S); }
+      catch (e) { M.toast('No se pudo preparar la impresión: ' + e.message, 6000); }
+    };
     window.api.on('fatal', (msg) => M.toast('Error del motor: ' + msg, 10000));
     M.lists = await M.call('lists');
     const saved = M.store.get('current', null);

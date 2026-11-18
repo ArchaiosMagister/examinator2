@@ -90,11 +90,11 @@
       inp.onchange = () => { const f = inp.files[0]; if (!f) return resolve(null); const r = new FileReader(); r.onload = () => resolve({ path: f.name, text: r.result }); r.readAsText(f); };
       inp.click();
     }),
-    makePdf: async ({ html, defaultName }) => {
-      // En una PWA instalada en iPad/iPhone, Safari puede ignorar print().
-      // Preparar un PDF real y ofrecer compartirlo/descargarlo expresamente.
+    makePdf: async ({ html, defaultName, exam }) => {
+      // La PWA iOS genera un PDF de texto real a partir del mismo modelo
+      // académico de la vista previa y Word, no una imagen de la página.
       if (window.EXPdf && window.EXPdf.isIOS()) {
-        const blob = await window.EXPdf.generate(html);
+        const blob = await window.EXPdf.generate(exam);
         return window.EXPdf.deliver(blob, defaultName);
       }
       // Mantener el flujo de impresión original en escritorio y Android.

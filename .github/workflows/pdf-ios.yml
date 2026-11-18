@@ -16,5 +16,11 @@ jobs:
           node-version: '22'
       - name: Usar Playwright con motores Chromium y WebKit
         run: npm install --no-save --package-lock=false playwright@1.56.1
-      - name: Generar PDF real en iPad y verificar filas Guardar/Guardada
+      - name: Instalar comprobador de texto PDF y objetos gráficos
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends poppler-utils
+      - name: Verificar PDF vectorial Unicode en iPad y estabilidad del vocabulario
         run: node tests/ios-pdf-browser.cjs
+      - name: Probar vista imprimible Palatino con WebKit y Chromium
+        run: node tests/print-browser.cjs

@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v15-ios-pdf-stable-vocab-20261118';
+const VERSION = 'examinator2-v18-ios-print-palatino-20261118';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -20,8 +20,10 @@ const PRECACHE = [
   "./fonts/gentium-book-plus-latin-ext-700-italic.woff2",
   "./fonts/gentium-book-plus-latin-ext-700-normal.woff2",
   "./lib/jszip.min.js",
-  "./lib/html2pdf.bundle.min.js",
+  "./lib/pdfmake.min.js",
+  "./lib/pdfmake-vfs.js",
   "./js/pdf-export.js",
+  "./js/print-export.js",
   "./js/datos.js",
   "./js/bancos-datos.js",
   "./js/lexico-bancos-datos.js",

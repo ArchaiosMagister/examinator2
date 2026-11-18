@@ -126,6 +126,17 @@ module.exports = (async () => {
   assert.throws(() => V.parse('amo\tamar\namo\tquerer'));
   const S = { texto: 'Gallia est omnis divisa in partes tres.', tokens, fuente: 'Palatino', tamano: 10.5, espacioPreguntas: 0, hueco: 0,
     literatura: { texto: 'At regina gravi\nvolnus alit', traduccion: '', autor: 'Virgilio', obra: 'Aeneis', cita: 'IV 1–2' } };
+  // La selección tipográfica no cambia el contenido académico ni los bancos.
+  const defaultStack = ctx.M.Exam.fontStack();
+  assert.ok(defaultStack.startsWith("'Palatino', "));
+  assert.ok(defaultStack.includes("'PalemonasMUFI'"));
+  assert.ok(defaultStack.includes("'Palemonas MUFI'"));
+  assert.ok(defaultStack.endsWith("'Gentium Book Plus', serif"));
+  assert.ok(!defaultStack.includes("'Palatino Linotype'"), 'No elegir Linotype por defecto');
+  assert.ok(ctx.M.Exam.fontStack('PalemonasMUFI').startsWith("'PalemonasMUFI', "));
+  assert.ok(ctx.M.Exam.fontStack('Palatino Linotype').startsWith("'Palatino Linotype', "),
+    'Respetar las preferencias de exámenes anteriores');
+  assert.match(fs.readFileSync(path.join(root, 'js/start.js'), 'utf8'), /PalemonasMUFI/);
   const css = ctx.M.Exam.pageCss(S);
   assert.match(css, /font-size: 10.5pt/); assert.match(css, /margin: 0 0 0cm/); assert.match(css, /margin-bottom: 0cm/);
   const html = ctx.M.Exam.html(S); assert.match(html, /At regina gravi\nvolnus alit/); assert.match(html, /litTranslation"><\/div>/);

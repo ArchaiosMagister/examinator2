@@ -35,14 +35,14 @@ assert.match(css, /#lib\s*\{[^}]*inset:\s*calc\(48px \+ var\(--top-band-height\)
 assert.match(css, /#lib\s*\{[^}]*z-index:\s*40;/);
 assert.match(css, /main\s*\{\s*display:\s*grid;/);
 const topButtonIds = ['btnNew', 'btnOpen', 'btnSave', 'btnLib', 'btnLists', 'btnSettings',
-  'btnInstall', 'btnUpdate', 'btnDocx', 'btnPdf'];
+  'btnInstall', 'btnUpdate', 'btnDocx', 'btnPdf', 'btnPrintPdf'];
 for(const id of topButtonIds) {
   const count = html.split('id="' + id + '"').length - 1;
   assert.equal(count, 1, id + ' sigue existiendo exactamente una vez');
 }
 assert.equal((html.match(/<header>/g)||[]).length, 1, 'Cabecera sin duplicar');
 assert.equal((html.match(/<\/header>/g)||[]).length, 1, 'Cabecera intacta');
-assert.match(sw, /examinator2-v15-ios-pdf-stable-vocab-20261118/);
+assert.match(sw, /examinator2-v18-ios-print-palatino-20261118/);
 assert.match(sw, /"\.\/styles\.css"/);
 assert.equal(48 + pixels, 98, 'La biblioteca empieza bajo la cabecera de 48px y la banda de 50px');
 console.log('OK: Examinator blanco centrado en banda verde de ' + pixels + ' px, tipografía igual, biblioteca alineada y PWA versionada.');

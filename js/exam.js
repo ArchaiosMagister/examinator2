@@ -16,7 +16,7 @@
       subr: [], prev: [{ txt: '', n: 3 }, { txt: '', n: 2 }], evol: [], pref: [], latin: [],
       documento: 'parcial', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
       tamano: M.store.get('tamano', 10.5), espacioPreguntas: M.store.get('espacioPreguntas', 0.3),
-      fuente: M.store.get('fuente', 'Palatino Linotype'), interlineado: M.store.get('interlineado', 3), hueco: M.store.get('hueco', 2.6)
+      fuente: M.store.get('fuente', 'Palatino'), interlineado: M.store.get('interlineado', 3), hueco: M.store.get('hueco', 2.6)
     };
     P.evol(S); P.pref(S); P.latin(S);
     return S;
