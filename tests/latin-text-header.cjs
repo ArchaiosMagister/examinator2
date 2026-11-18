@@ -116,6 +116,17 @@ load('js/motor.js');
    assert.ok(d.includes(title));assert.ok(d.includes(right));
    if(documento==='repaso')assert.ok(!E.questionList(sample).some(x=>/\(\dp/.test(x)));
  }
+ // Si el motor no estuviera disponible, las exportaciones siguen
+ // funcionando con el texto original, sin perder contenido.
+ const normalCall=ctx.M.call;
+ const fallback={...S,literatura:{texto:'Poeta proelium narrat.',traduccion:'',autor:'Virgilio'}};
+ ctx.M.call=async()=>{throw Error('Collatinus no disponible');};
+ assert.equal(await E.prepareLiterature(fallback),false);
+ assert.equal(E.literatureLatin(fallback),'Poeta proelium narrat.');
+ const fallbackZip=await ctx.JSZip.loadAsync(await E.docx(fallback),{base64:true});
+ assert.match(await fallbackZip.file('word/document.xml').async('string'),/Poeta proelium narrat/);
+ ctx.M.call=normalCall;
+
  assert.equal(E.headerLeft({documento:'examen',tipo:'Examen'}),'Examen parcial de Latín II');
  assert.equal(E.headerLeft({documento:'repaso',tipo:'Repaso'}),'Texto de repaso');
  assert.equal(E.headerLeft({documento:'final',tipo:'Actividad propia'}),'Actividad propia');
