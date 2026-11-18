@@ -115,13 +115,7 @@
     ? String(S.asig || 'Latín II') : E.trimesterLabel(S);
   E.questionList = (S) => E.questions.map((q) => S.documento === 'repaso' ? q.replace(/\s*\(\d+p\.\)/g, '') : q);
   E.literatureRef = (L) => [L.autor, L.obra, L.cita].filter(Boolean).join(', ');
-  // Las fuentes comerciales se seleccionan solo si están instaladas.
-  // Gentium Book Plus se distribuye bajo SIL OFL para uso sin conexión.
-  E.fontStack = (f) => {
-    const selected = String(f || 'Palatino').replace(/['"\\;]/g, '').trim() || 'Palatino';
-    const faces = [selected, 'Palatino', 'PalemonasMUFI', 'Palemonas MUFI', 'Gentium Book Plus'];
-    return [...new Set(faces)].map((name) => `'${name}'`).join(', ') + ', serif';
-  };
+  E.fontStack = (f) => `'${f || 'Palatino Linotype'}', 'Palatino Linotype', 'Book Antiqua', Palatino, 'Gentium Book Plus', serif`;
 
   /* ---------- HTML ---------- */
   const runsHtml = (rs) => rs.map((r) => { let h = esc(r.t); if (r.i) h = `<i>${h}</i>`; if (r.n) h = `<span class="nr">${h}</span>`; if (r.u) h = `<u>${h}</u>`; return h; }).join('');
@@ -193,7 +187,7 @@ ${E.pageCss(S)}
   const para = (runs, ppr, base) => `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${runs.map((r) => run(r, base)).join('')}</w:p>`;
   E.docx = async function (S) {
     await E.prepareLiterature(S);
-    const font = S.fuente || 'Palatino';
+    const font = S.fuente || 'Palatino Linotype';
     const W = 9354; // ancho útil en twips (A4 con márgenes de 2,2 cm)
     const bd = (sz) => `<w:top w:val="single" w:sz="${sz}" w:color="222222"/><w:left w:val="single" w:sz="${sz}" w:color="222222"/><w:bottom w:val="single" w:sz="${sz}" w:color="222222"/><w:right w:val="single" w:sz="${sz}" w:color="222222"/>`;
     const sp0 = '<w:spacing w:before="0" w:after="0"/>';
