@@ -171,7 +171,7 @@ module.exports = (async () => {
     const noLit = { ...spaced, literatura: { texto: '', traduccion: '' } };
     const noLitWord = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(noLit), { base64: true });
     const noLitXml = await noLitWord.file('word/document.xml').async('string');
-    const noLitAfter = [...noLitXml.matchAll(/<w:spacing w:before="0" w:after="(\\d+)"\\/><w:ind w:left="1134"/g)]
+    const noLitAfter = [...noLitXml.matchAll(/<w:spacing w:before="0" w:after="(\d+)"\/><w:ind w:left="1134"/g)].map((x) => Number(x[1]));
       .map((x) => Number(x[1]));
     assert.deepEqual(noLitAfter, [Math.round(cm * 567), Math.round(cm * 567), Math.round(cm * 567), 0],
       'Word sin Literatura: el espacio final de la pregunta 4 no debe cambiar');
