@@ -68,6 +68,9 @@ const server = http.createServer((req,res) => {
               fontFamily:getComputedStyle(tds[0]).fontFamily,
               translationFamily:getComputedStyle(tds[1]).fontFamily,
               tableRect:bounds(table),sheetRect:bounds(sheet),cellRects:tds.map(bounds),
+              sheetZoom:getComputedStyle(sheet).zoom,
+              textSizeAdjust:getComputedStyle(tds[0]).webkitTextSizeAdjust,
+              viewport:innerWidth,
               print:M.Exam.printDoc(M.S)
             };
           });
@@ -83,7 +86,7 @@ const server = http.createServer((req,res) => {
           assert.equal(check.translationItalic,'normal');
           assert.match(check.fontFamily,/Palatino Linotype/);
           assert.match(check.translationFamily,/Palatino Linotype/);
-          assert.ok(Math.abs(check.fontSize-13.333)<.75, '10 pt en CSS: '+check.fontSize+'px en '+name+' '+device);
+          assert.ok(Math.abs(check.fontSize-13.333)<.75, '10 pt en CSS: '+check.fontSize+'px en '+name+' '+device+', zoom '+check.sheetZoom+', text-size-adjust '+check.textSizeAdjust+', viewport '+check.viewport);
           assert.ok(Math.abs(check.translationSize-13.333)<.75, '10 pt en ambas columnas: '+check.translationSize+'px en '+name+' '+device);
           assert.ok(Math.abs(check.cellRects[0].width-check.cellRects[1].width)<2,'Columnas iguales');
           assert.ok(check.tableRect.width>60,'Tabla visible');
