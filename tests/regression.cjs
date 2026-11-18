@@ -159,10 +159,24 @@ module.exports = (async () => {
     const spaced = { ...S, hueco: cm };
     const cssSpaced = ctx.M.Exam.pageCss(spaced);
     assert.ok(cssSpaced.includes('margin-bottom: ' + cm + 'cm;'), 'Vista previa y PDF: ' + cm + ' cm');
+    assert.ok(cssSpaced.includes('> ol.s { padding-bottom: ' + cm + 'cm; }'),
+      'El intervalo latinismos → Literatura utiliza la distancia interna de pregunta 4: ' + cm + ' cm');
+    assert.ok(ctx.M.Exam.html(spaced).includes('class="q4BeforeLiterature"'),
+      'La pregunta 4 marca su separación con la quinta solo si hay Literatura');
     const word = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(spaced), { base64: true });
     const xml = await word.file('word/document.xml').async('string');
     const after = [...xml.matchAll(/<w:spacing w:before="0" w:after="(\d+)"\/><w:ind w:left="1134"/g)].map((x) => Number(x[1]));
-    assert.deepEqual(after, [Math.round(cm * 567), Math.round(cm * 567), Math.round(cm * 567), 0], 'Espacio exacto en Word: ' + cm + ' cm');
+    assert.deepEqual(after, Array(4).fill(Math.round(cm * 567)),
+      'Word: d) latinismos → pregunta 5 debe tener el mismo intervalo que a)–d): ' + cm + ' cm');
+    const noLit = { ...spaced, literatura: { texto: '', traduccion: '' } };
+    const noLitWord = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(noLit), { base64: true });
+    const noLitXml = await noLitWord.file('word/document.xml').async('string');
+    const noLitAfter = [...noLitXml.matchAll(/<w:spacing w:before="0" w:after="(\\d+)"\\/><w:ind w:left="1134"/g)]
+      .map((x) => Number(x[1]));
+    assert.deepEqual(noLitAfter, [Math.round(cm * 567), Math.round(cm * 567), Math.round(cm * 567), 0],
+      'Word sin Literatura: el espacio final de la pregunta 4 no debe cambiar');
+    assert.ok(!ctx.M.Exam.html(noLit).includes('q4BeforeLiterature'),
+      'Sin literatura no se añade espacio nuevo');
   }
   assert.match(fs.readFileSync(path.join(root, 'js/start.js'), 'utf8'), /class="sh" type="number" min="0" max="10" step="0\.05"/);
 
