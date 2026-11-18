@@ -17,58 +17,188 @@
     return stem.slice(0, 120) + '.pdf';
   }
 
-  async function generate(html) {
-    if (typeof window.html2pdf !== 'function') {
-      throw new Error('No se ha podido cargar el generador de PDF sin conexión. Pulsa Actualizar.');
-    }
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
-    const source = parsed.body.querySelector('.page');
-    const sourceCss = parsed.querySelector('style');
-    if (!source || !sourceCss) throw new Error('El examen no contiene una página exportable.');
-
-    const css = document.createElement('style');
-    css.dataset.pdfExport = 'styles';
-    css.textContent = sourceCss.textContent;
-    document.head.appendChild(css);
-    const host = document.createElement('div');
-    host.dataset.pdfExport = 'host';
-    // La hoja A4 tiene 210mm de ancho; dejamos 22mm a cada lado.
-    // Se utiliza el contenido ya generado, sin regenerar preguntas.
-    host.style.cssText = 'position:absolute;left:-12000px;top:0;width:166mm;pointer-events:none;';
-    const content = document.importNode(source, true);
-    content.style.cssText = 'box-sizing:border-box;width:166mm;max-width:166mm;margin:0;transform:none;zoom:1;';
-    host.appendChild(content);
-    document.body.appendChild(host);
-    try {
-      await document.fonts.ready;
-      const pdf = await window.html2pdf().set({
-        margin: [20, 22, 20, 22],
-        filename: 'examen.pdf',
-        image: { type:'jpeg', quality:0.97 },
-        html2canvas: {
-          scale:2, useCORS:true, allowTaint:false,
-          backgroundColor:'#ffffff', windowWidth:1050
-        },
-        jsPDF: { unit:'mm', format:'a4', orientation:'portrait', compress:true },
-        pagebreak: { mode:['css','legacy'], avoid:['.hdr','.ttl','.voc .vh','.literature h3'] }
-      }).from(content).toPdf().get('pdf');
-      const pages = pdf.internal.getNumberOfPages();
-      if (!pages || pages > 100) throw new Error('No se han podido componer las páginas del PDF.');
-      // Mismo contador que el Word: 1 | 2, 2 | 2, etc.
-      pdf.setFont('helvetica','normal');
-      pdf.setFontSize(9);
-      for (let i=1;i<=pages;i++) {
-        pdf.setPage(i);
-        pdf.setTextColor(35,35,35);
-        pdf.text(i+' | '+pages,105,288,{align:'center'});
+  // pdfmake trabaja con objetos de texto y fuentes incrustadas: nunca
+  // transforma el documento en una imagen. Los scripts son locales y
+  // precargados por la PWA; se cargan solo al exportar desde iOS.
+  let rendererPromise = null;
+  function script(src) {
+    return new Promise((resolve, reject) => {
+      const tag = document.createElement('script');
+      tag.src = src;
+      tag.onload = resolve;
+      tag.onerror = () => reject(new Error('No se pudo cargar ' + src + '. Pulsa Actualizar.'));
+      document.head.appendChild(tag);
+    });
+  }
+  function renderer() {
+    if (window.pdfMake && window.pdfMake.createPdf && window.pdfMake.vfs) return Promise.resolve(window.pdfMake);
+    if (!rendererPromise) rendererPromise = (async () => {
+      if (!window.pdfMake || !window.pdfMake.createPdf) await script('lib/pdfmake.min.js');
+      await script('lib/pdfmake-vfs.js');
+      if (!window.pdfMake || !window.pdfMake.createPdf || !window.pdfMake.vfs) {
+        throw new Error('Las fuentes del generador PDF no están disponibles. Pulsa Actualizar.');
       }
-      const result=pdf.output('blob');
-      if (!(result instanceof Blob) || result.size < 1000) throw new Error('El PDF generado está vacío.');
-      return result;
-    } finally {
-      host.remove();
-      css.remove();
+      return window.pdfMake;
+    })().catch((err) => { rendererPromise = null; throw err; });
+    return rendererPromise;
+  }
+
+  const cm = (n) => Number(n) * 72 / 2.54;
+  function definition(S) {
+    if (!S || !window.M || !M.Exam) throw new Error('No se ha cargado el examen.');
+    const E = M.Exam;
+    const size = E.fontSize(S);
+    const noBorder = {
+      hLineWidth: () => 0, vLineWidth: () => 0,
+      paddingLeft: () => 0, paddingRight: () => 0,
+      paddingTop: () => 0, paddingBottom: () => 0
+    };
+    const outlined = {
+      hLineWidth: (i, node) => i === 0 || i === node.table.body.length ? 0.75 : 0,
+      vLineWidth: (i, node) => i === 0 || i === node.table.widths.length ? 0.75 : 0,
+      hLineColor: () => '#222222',
+      vLineColor: () => '#222222',
+      paddingLeft: () => 7, paddingRight: () => 7,
+      paddingTop: () => 3, paddingBottom: () => 3
+    };
+    const rich = (runs) => runs.map((r) => {
+      const out = { text: String(r.t || '') };
+      if (r.i) out.italics = true;
+      if (r.b) out.bold = true;
+      if (r.u) out.decoration = 'underline';
+      return out;
+    });
+    const content = [];
+    // Cabecera: exclusivamente sus cuatro bordes exteriores.
+    content.push({
+      table: {
+        widths: ['*', 122],
+        dontBreakRows: true,
+        body: [
+          [{ text: E.headerLeft(S), bold: true }, { text: E.headerRight(S), bold: true }],
+          [{ text: 'Nombre y apellidos:', bold: true }, { text: 'Fecha:', bold: true }]
+        ]
+      },
+      layout: outlined
+    });
+    // Título y referencia en sus dos filetes propios.
+    const maxWidth = 595.28 - 2 * cm(2.2);
+    const line = () => ({ canvas: [{
+      type: 'line', x1: 0, y1: 0, x2: maxWidth, y2: 0,
+      lineColor: '#999999', lineWidth: 0.6
+    }] });
+    const refs = [];
+    if (S.refAutor) refs.push({ text: S.refAutor });
+    if (S.refObra) {
+      if (refs.length) refs.push({ text: ', ' });
+      refs.push({ text: S.refObra, italics: true });
     }
+    if (S.refCita) {
+      if (refs.length) refs.push({ text: ' ' });
+      refs.push({ text: S.refCita });
+    }
+    const title = [line()];
+    if (S.titulo) title.push({ text: S.titulo, bold: true, alignment: 'center', margin: [0, 5, 0, 1] });
+    if (refs.length) title.push({ text: refs, alignment: 'center', margin: [0, S.titulo ? 0 : 5, 0, 5] });
+    if (!S.titulo && !refs.length) title.push({ text: ' ', margin: [0, 5, 0, 5] });
+    title.push(line());
+    content.push({ stack: title, unbreakable: true, margin: [0, 9, 0, 0] });
+
+    const latinRuns = E.textRuns(S);
+    content.push({
+      text: latinRuns.length ? latinRuns.map((r) => ({
+        text: r.t, italics: !r.n,
+        ...(r.u ? { decoration: 'underline' } : {})
+      })) : ' ',
+      alignment: 'justify',
+      lineHeight: Number(S.interlineado) || 3,
+      margin: [0, 12, 0, 6]
+    });
+
+    const vocabulary = E.vocabList(S);
+    if (vocabulary.length) {
+      const rows = [{ text: 'Vocabulario', bold: true, alignment: 'center', margin: [0, 0, 0, 1] }];
+      vocabulary.forEach((v) => {
+        rows.push({
+          text: [
+            { text: String(v.head || '') + ':', italics: true },
+            { text: ' ‘' + String(v.trad || '') + '’' + (v.note ? ' (' + v.note + ')' : '') }
+          ],
+          margin: [0, 0, 0, 0]
+        });
+      });
+      content.push({
+        table: { widths: ['*'], dontBreakRows: true, body: [[{ stack: rows }]] },
+        layout: outlined,
+        margin: [0, 6, 0, 10]
+      });
+    }
+
+    E.questionList(S).forEach((q, i) => {
+      content.push({
+        columns: [
+          { text: String(i + 1) + '.', width: 24, bold: true },
+          { text: q, width: '*', bold: true }
+        ],
+        columnGap: 0,
+        margin: [0, 0, 0, cm(E.questionSpace(S))]
+      });
+      if (i === 3) E.q4(S).forEach((runs, k) => {
+        content.push({
+          columns: [
+            { text: String.fromCharCode(97 + k) + '.', width: 35 },
+            { text: rich(runs), width: '*', alignment: 'justify' }
+          ],
+          columnGap: 0,
+          margin: [0, 3, 0, k === 3 ? 0 : cm(E.q4Space(S))]
+        });
+      });
+    });
+
+    if (S.literatura && S.literatura.texto) {
+      const L = S.literatura;
+      content.push({
+        text: 'Literatura' + (E.documentMode(S) === 'repaso' ? '' : ' (2p.)'),
+        bold: true, margin: [0, 12, 0, 4]
+      });
+      content.push({ text: E.literatureRef(L), margin: [0, 0, 0, 4] });
+      content.push({ text: E.literatureLatin(S), italics: true, preserveLeadingSpaces: true, margin: [0, 0, 0, 8] });
+      content.push({ text: 'Traducción', bold: true, margin: [0, 4, 0, 0] });
+      content.push(L.traduccion
+        ? { text: L.traduccion, margin: [0, 2, 0, 0] }
+        : { text: '\n\n\n\n', margin: [0, 0, 0, 0] });
+    }
+
+    return {
+      pageSize: 'A4',
+      pageMargins: [cm(2.2), cm(2), cm(2.2), cm(2)],
+      defaultStyle: {
+        font: 'Roboto',
+        fontSize: size,
+        color: '#111111',
+        lineHeight: 1.35
+      },
+      content,
+      footer: (page, total) => ({
+        text: page + ' | ' + total, alignment: 'center', fontSize: 9,
+        color: '#333333', margin: [0, 0, 0, 18]
+      }),
+      info: { title: E.headerLeft(S), creator: 'Examinator2' }
+    };
+  }
+
+  async function generate(S) {
+    const pdfMake = await renderer();
+    await M.Exam.prepareLiterature(S);
+    const doc = definition(S);
+    const result = await new Promise((resolve, reject) => {
+      try { pdfMake.createPdf(doc).getBlob((blob) => resolve(blob)); }
+      catch (e) { reject(e); }
+    });
+    if (!(result instanceof Blob) || result.size < 1000) {
+      throw new Error('El PDF generado está vacío.');
+    }
+    return result;
   }
 
   function deliver(blob, requestedName) {
@@ -104,5 +234,5 @@
     return {prepared:true,filename};
   }
 
-  window.EXPdf = { isIOS, generate, deliver, cleanName };
+  window.EXPdf = { isIOS, generate, deliver, cleanName, definition };
 })();
