@@ -159,6 +159,10 @@
 .page ol.s { list-style: lower-alpha; font-weight: normal; padding-left: 1.6em; margin: 3pt 0 0; }
 .page ol.s > li { font-weight: normal; text-align: justify; padding-left: .4em; margin-bottom: ${E.q4Space(S)}cm; }
 .page ol.s > li:last-child { margin-bottom: 0; }
+/* Cuando sigue Literatura, el espacio d) → 5 es el mismo que entre a), b), c) y d).
+   No sumar además el espaciado general entre preguntas. */
+.page ol.q > li.q4BeforeLiterature { margin-bottom: 0; }
+.page ol.q > li.q4BeforeLiterature > ol.s { padding-bottom: ${E.q4Space(S)}cm; }
 `;
   };
   E.html = function (S) {
@@ -180,7 +184,7 @@
 <div class="txt">${runsHtml(E.textRuns(S)) || '&nbsp;'}</div>
 ${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ${esc(E.vocabGlosses(v))}${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
 <ol class="q">
-${E.questionList(S).map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
+${E.questionList(S).map((q, k) => `<li${k === 3 && E.hasLiterature(S) ? ' class="q4BeforeLiterature"' : ''}>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
 ${litQuestionHtml}
 </ol>
 </div>`;
@@ -247,7 +251,8 @@ ${E.pageCss(S)}
     const hue = Math.round(E.q4Space(S) * 567);
     E.q4(S).forEach((r, k) => {
       const last = k === 3;
-      body += para([{ t: 'abcd'[k] + '.' }, { t: '\t' }].concat(r), `<w:tabs><w:tab w:val="left" w:pos="1134"/></w:tabs><w:spacing w:before="0" w:after="${last ? 0 : hue}"/><w:ind w:left="1134" w:hanging="425"/><w:jc w:val="both"/>`);
+      const after = !last || E.hasLiterature(S) ? hue : 0;
+      body += para([{ t: 'abcd'[k] + '.' }, { t: '\t' }].concat(r), `<w:tabs><w:tab w:val="left" w:pos="1134"/></w:tabs><w:spacing w:before="0" w:after="${after}"/><w:ind w:left="1134" w:hanging="425"/><w:jc w:val="both"/>`);
     });
     if (E.hasLiterature(S)) {
       // Misma numeración, negrita y sangría que las cuatro preguntas anteriores.
