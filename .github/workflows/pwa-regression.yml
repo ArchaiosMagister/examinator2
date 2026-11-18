@@ -26,6 +26,8 @@ jobs:
         run: node tests/latin-text-header.cjs
       - name: Correcciones docentes persistentes del vocabulario
         run: node tests/vocab-save.cjs
+      - name: PDF directo en iPad y botones de vocabulario
+        run: node tests/pdf-ios.cjs
       - name: PWA y bancos académicos sin conexión
         run: node tests/pwa-banks.cjs
       - name: Filtros docentes y listas históricas
