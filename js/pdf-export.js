@@ -21,6 +21,7 @@
   // transforma el documento en una imagen. Los scripts son locales y
   // precargados por la PWA; se cargan solo al exportar desde iOS.
   let rendererPromise = null;
+  let fontsReady = false;
   function script(src) {
     return new Promise((resolve, reject) => {
       const tag = document.createElement('script');
@@ -31,13 +32,16 @@
     });
   }
   function renderer() {
-    if (window.pdfMake && window.pdfMake.createPdf && window.pdfMake.vfs) return Promise.resolve(window.pdfMake);
+    if (window.pdfMake && window.pdfMake.createPdf && fontsReady) return Promise.resolve(window.pdfMake);
     if (!rendererPromise) rendererPromise = (async () => {
       if (!window.pdfMake || !window.pdfMake.createPdf) await script('lib/pdfmake.min.js');
       await script('lib/pdfmake-vfs.js');
-      if (!window.pdfMake || !window.pdfMake.createPdf || !window.pdfMake.vfs) {
-        throw new Error('Las fuentes del generador PDF no están disponibles. Pulsa Actualizar.');
+      if (!window.pdfMake || !window.pdfMake.createPdf) {
+        throw new Error('El generador PDF no está disponible. Pulsa Actualizar.');
       }
+      // pdfmake 0.2 registra las fuentes mediante addVirtualFileSystem(),
+      // pero no expone una propiedad pública pdfMake.vfs.
+      fontsReady = true;
       return window.pdfMake;
     })().catch((err) => { rendererPromise = null; throw err; });
     return rendererPromise;
