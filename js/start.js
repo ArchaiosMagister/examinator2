@@ -18,7 +18,9 @@
     // Garantizar la misma grafía de los textos de literatura en PDF y Word.
     await M.Exam.prepareLiterature(M.S);
     const p = await window.api.makePdf({ html: M.Exam.printDoc(M.S), defaultName: baseName() + '.pdf' });
-    if (p) done(p); else if (window.api.web) M.toast('En la ventana de impresión elige «Guardar como PDF».', 6000);
+    if (p && p.prepared) return; // En iPad: diálogo con enlace y compartir PDF ya mostrado.
+    if (p) done(p);
+    else if (window.api.web) M.toast('En el diálogo de impresión elige «Guardar como PDF».', 6000);
   }
   function done(p) {
     M.modal('Examen guardado', `<p>Se ha guardado en:</p><p class="small" style="word-break:break-all">${M.esc(p)}</p>`, [
