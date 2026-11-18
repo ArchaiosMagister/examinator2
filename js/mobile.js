@@ -4,7 +4,7 @@
  */
 'use strict';
 (function () {
-  const mobileQuery = '(max-width: 760px), (max-width: 950px) and (max-height: 550px)';
+  const mobileQuery = '(max-width: 1100px)';
   function initMobile() {
     const menu = document.getElementById('btnMobileMenu');
     const actions = document.getElementById('headerActions');
