@@ -42,7 +42,7 @@ for(const id of topButtonIds) {
 }
 assert.equal((html.match(/<header>/g)||[]).length, 1, 'Cabecera sin duplicar');
 assert.equal((html.match(/<\/header>/g)||[]).length, 1, 'Cabecera intacta');
-assert.match(sw, /examinator2-v1.1.2-literature-question-20261118/);
+assert.match(sw, /examinator2-v1.1.3-literature-gap-20261118/);
 assert.match(sw, /"\.\/styles\.css"/);
 assert.equal(48 + pixels, 98, 'La biblioteca empieza bajo la cabecera de 48px y la banda de 50px');
 console.log('OK: Examinator blanco centrado en banda verde de ' + pixels + ' px, tipografía igual, biblioteca alineada y PWA versionada.');
