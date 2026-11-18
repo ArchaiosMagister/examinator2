@@ -90,8 +90,14 @@
       inp.onchange = () => { const f = inp.files[0]; if (!f) return resolve(null); const r = new FileReader(); r.onload = () => resolve({ path: f.name, text: r.result }); r.readAsText(f); };
       inp.click();
     }),
-    makePdf: async ({ html }) => {
-      // se abre el diálogo de impresión del navegador: «Guardar como PDF»
+    makePdf: async ({ html, defaultName }) => {
+      // En una PWA instalada en iPad/iPhone, Safari puede ignorar print().
+      // Preparar un PDF real y ofrecer compartirlo/descargarlo expresamente.
+      if (window.EXPdf && window.EXPdf.isIOS()) {
+        const blob = await window.EXPdf.generate(html);
+        return window.EXPdf.deliver(blob, defaultName);
+      }
+      // Mantener el flujo de impresión original en escritorio y Android.
       const fr = document.createElement('iframe');
       fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
       document.body.appendChild(fr);
