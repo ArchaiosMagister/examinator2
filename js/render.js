@@ -10,12 +10,14 @@
     const text = S.texto || '';
     const under = new Set();
     for (const s of S.subr || []) for (const i of s.toks || []) under.add(i);
-    const toks = (S.tokens || []).filter((t) => under.has(t.i)).sort((a, b) => a.s - b.s);
+    // Todos los tokens, no solo los subrayados: la grafía æ/œ es visible
+    // también en las palabras que no formen parte del análisis morfológico.
+    const toks = (S.tokens || []).slice().sort((a, b) => a.s - b.s);
     const runs = []; let pos = 0;
     for (const t of toks) {
       if (t.s < pos || t.e > text.length || text.slice(t.s, t.e) !== t.w) continue;
       if (t.s > pos) runs.push({ t: text.slice(pos, t.s) });
-      runs.push({ t: t.w, u: true });
+      runs.push({ t: t.lig || t.w, u: under.has(t.i) });
       pos = t.e;
     }
     if (pos < text.length) runs.push({ t: text.slice(pos) });
@@ -28,6 +30,29 @@
     }
     return out;
   };
+  // La literatura mantiene intacto el texto que el docente pega o
+  // selecciona. La grafía con ligaduras se calcula y guarda solo en memoria.
+  const latinLiteratureCache = new WeakMap();
+  E.literatureLatin = (S) => {
+    const L = S.literatura;
+    if (!L || !L.texto) return '';
+    const hit = latinLiteratureCache.get(L);
+    return hit && hit.source === L.texto ? hit.value : L.texto;
+  };
+  E.prepareLiterature = async (S) => {
+    const L = S.literatura;
+    if (!L || !L.texto) return false;
+    const source = L.texto;
+    const hit = latinLiteratureCache.get(L);
+    if (hit && hit.source === source) return false;
+    let result;
+    try { result = await M.call('ligateText', { text: source }); }
+    catch (_) { return false; /* La exportación debe funcionar aun sin Collatinus. */ }
+    if (S.literatura !== L || L.texto !== source) return false;
+    latinLiteratureCache.set(L, { source, value: result });
+    return result !== source;
+  };
+
   E.vocabList = function (S) {
     const out = (S.vocabItems || []).filter((v) => v.on);
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
@@ -71,6 +96,23 @@
   // S.hueco ya está expresado en centímetros en los archivos .examen antiguos.
   // Conservarlo evita migraciones y mantiene el mismo espaciado en Word, PDF y vista previa.
   E.q4Space = (S) => { const n = Number(S.hueco ?? 2.6); return Number.isFinite(n) && n >= 0 && n <= 10 ? n : 2.6; };
+  E.documentMode = (S) => S.documento === 'repaso' ? 'repaso' : S.documento === 'final' ? 'final' : 'parcial';
+  E.documentNames = {
+    parcial: 'Examen parcial de Latín II',
+    final: 'Examen final de Latín II',
+    repaso: 'Texto de repaso'
+  };
+  E.headerLeft = (S) => {
+    const saved = String(S.tipo || '').trim();
+    return !saved || saved === 'Examen' || saved === 'Repaso'
+      ? E.documentNames[E.documentMode(S)] : saved;
+  };
+  E.trimesterLabel = (S) => {
+    const t = String(S.trimestre || '1');
+    return ({ '1': '1.r trimestre', '2': '2.º trimestre', '3': '3.r trimestre' })[t] || '1.r trimestre';
+  };
+  E.headerRight = (S) => E.documentMode(S) === 'repaso'
+    ? String(S.asig || 'Latín II') : E.trimesterLabel(S);
   E.questionList = (S) => E.questions.map((q) => S.documento === 'repaso' ? q.replace(/\s*\(\d+p\.\)/g, '') : q);
   E.literatureRef = (L) => [L.autor, L.obra, L.cita].filter(Boolean).join(', ');
   E.fontStack = (f) => `'${f || 'Palatino Linotype'}', 'Palatino Linotype', 'Book Antiqua', Palatino, 'Gentium Book Plus', serif`;
@@ -81,9 +123,11 @@
     const lh = S.interlineado || 3;
     return `
 .page { font-family: ${E.fontStack(S.fuente)}; font-size: ${E.fontSize(S)}pt; color: #111; line-height: 1.35; }
-.page .hdr { width: 100%; border: 1px solid #222; border-collapse: collapse; font-weight: bold; }
-.page .hdr td { padding: 3pt 7pt; }
-.page .hdr td:last-child { width: 26%; }
+.page .hdr { width: 100%; border: .75pt solid #222; font-weight: bold; box-sizing: border-box; }
+.page .hdr-row { display: grid; grid-template-columns: minmax(0, 74%) minmax(0, 26%); padding: 3pt 7pt; }
+.page .hdr-row > span { min-width: 0; }
+.page .hdr-row > span:last-child { text-align: left; }
+/* Solo marco exterior; no dibujar líneas entre filas ni columnas. */
 .page .ttl { margin: 9pt 0 0; padding: 5pt 0 6pt; border-top: .6pt solid #9a9a9a; border-bottom: .6pt solid #9a9a9a; text-align: center; }
 .page .ttl .t { font-weight: bold; }
 .page .txt { font-style: italic; text-align: justify; line-height: ${lh}; margin: 12pt 0 6pt; hyphens: manual; }
@@ -111,14 +155,14 @@
     if (refHtml[2]) ref += (ref ? ' ' : '') + refHtml[2];
     const q4 = E.q4(S);
     return `<div class="page">
-<table class="hdr"><tr><td>${esc(S.tipo || 'Examen')}</td><td>${esc(S.asig || 'Latín II')}</td></tr><tr><td>Nombre y apellidos:</td><td>Fecha:</td></tr></table>
+<div class="hdr"><div class="hdr-row"><span>${esc(E.headerLeft(S))}</span><span>${esc(E.headerRight(S))}</span></div><div class="hdr-row"><span>Nombre y apellidos:</span><span>Fecha:</span></div></div>
 <div class="ttl">${S.titulo ? `<div class="t">${esc(S.titulo)}</div>` : ''}${ref ? `<div class="r">${ref}</div>` : ''}${!S.titulo && !ref ? '&nbsp;' : ''}</div>
 <div class="txt">${runsHtml(E.textRuns(S)) || '&nbsp;'}</div>
 ${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ‘${esc(v.trad)}’${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
 <ol class="q">
 ${E.questionList(S).map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
 </ol>
-${S.literatura && S.literatura.texto ? `<section class="literature"><h3>Literatura${S.documento === 'repaso' ? '' : ' (2p.)'}</h3><p>${esc(E.literatureRef(S.literatura))}</p><div class="litLatin">${esc(S.literatura.texto)}</div><p><b>Traducción</b></p><div class="litTranslation">${esc(S.literatura.traduccion || '')}</div></section>` : ''}
+${S.literatura && S.literatura.texto ? `<section class="literature"><h3>Literatura${S.documento === 'repaso' ? '' : ' (2p.)'}</h3><p>${esc(E.literatureRef(S.literatura))}</p><div class="litLatin">${esc(E.literatureLatin(S))}</div><p><b>Traducción</b></p><div class="litTranslation">${esc(S.literatura.traduccion || '')}</div></section>` : ''}
 </div>`;
   };
   E.printDoc = function (S) {
@@ -142,6 +186,7 @@ ${E.pageCss(S)}
   };
   const para = (runs, ppr, base) => `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${runs.map((r) => run(r, base)).join('')}</w:p>`;
   E.docx = async function (S) {
+    await E.prepareLiterature(S);
     const font = S.fuente || 'Palatino Linotype';
     const W = 9354; // ancho útil en twips (A4 con márgenes de 2,2 cm)
     const bd = (sz) => `<w:top w:val="single" w:sz="${sz}" w:color="222222"/><w:left w:val="single" w:sz="${sz}" w:color="222222"/><w:bottom w:val="single" w:sz="${sz}" w:color="222222"/><w:right w:val="single" w:sz="${sz}" w:color="222222"/>`;
@@ -150,8 +195,9 @@ ${E.pageCss(S)}
     // cabecera
     const c1 = Math.round(W * 0.74), c2 = W - c1;
     const cell = (t, w) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>${para([{ t, b: true }], sp0)}</w:tc>`;
-    body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${bd(6)}</w:tblBorders><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${c1}"/><w:gridCol w:w="${c2}"/></w:tblGrid>` +
-      `<w:tr>${cell(S.tipo || 'Examen', c1)}${cell(S.asig || 'Latín II', c2)}</w:tr><w:tr>${cell('Nombre y apellidos:', c1)}${cell('Fecha:', c2)}</w:tr></w:tbl>`;
+    const outerOnly = bd(6) + '<w:insideH w:val="nil"/><w:insideV w:val="nil"/>';
+    body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${outerOnly}</w:tblBorders><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${c1}"/><w:gridCol w:w="${c2}"/></w:tblGrid>` +
+      `<w:tr>${cell(E.headerLeft(S), c1)}${cell(E.headerRight(S), c2)}</w:tr><w:tr>${cell('Nombre y apellidos:', c1)}${cell('Fecha:', c2)}</w:tr></w:tbl>`;
     // título y referencia entre filetes
     const pbdr = (top, bottom) => `<w:pBdr>${top ? '<w:top w:val="single" w:sz="4" w:space="5" w:color="999999"/>' : ''}${bottom ? '<w:bottom w:val="single" w:sz="4" w:space="5" w:color="999999"/>' : ''}</w:pBdr>`;
     const refRuns = [];
@@ -187,7 +233,7 @@ ${E.pageCss(S)}
       const L = S.literatura;
       body += para([{ t: 'Literatura' + (S.documento === 'repaso' ? '' : ' (2p.)'), b: true }], '<w:spacing w:before="240"/><w:keepNext/>');
       body += para([{ t: E.literatureRef(L) }], sp0);
-      for (const line of L.texto.split('\n')) body += para([{ t: line, i: true }], sp0);
+      for (const line of E.literatureLatin(S).split('\n')) body += para([{ t: line, i: true }], sp0);
       body += para([{ t: 'Traducción', b: true }], '<w:spacing w:before="120"/><w:keepNext/>');
       for (const line of (L.traduccion || '').split('\n')) body += para([{ t: line }], L.traduccion ? sp0 : '<w:spacing w:after="1701"/>');
     }

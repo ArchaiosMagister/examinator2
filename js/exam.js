@@ -5,15 +5,16 @@
   const P = M.Propose;
   const CATN = { n: 'sustantivo', a: 'adjetivo', p: 'pronombre', v: 'verbo' };
   const QTY = [['modelo', 'vocales en sílaba abierta'], ['todas', 'todas las vocales'], ['largas', 'solo las largas'], ['ninguna', 'sin cantidades']];
+  const DOCS = { parcial: 'Examen parcial de Latín II', final: 'Examen final de Latín II', repaso: 'Texto de repaso' };
 
   M.newExam = function () {
     const S = {
-      v: 1, tipo: 'Examen', asig: M.store.get('asig', 'Latín II'),
+      v: 1, tipo: DOCS.parcial, asig: M.store.get('asig', 'Latín II'), trimestre: M.store.get('trimestre', '1'),
       titulo: '', refAutor: '', refObra: '', refCita: '', source: 'lib', urn: '',
       texto: '', textAnalyzed: '', tokens: [],
       qty: M.store.get('qty', 'modelo'), vocMode: 'elegir', vocabItems: [],
       subr: [], prev: [{ txt: '', n: 3 }, { txt: '', n: 2 }], evol: [], pref: [], latin: [],
-      documento: 'examen', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
+      documento: 'parcial', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
       tamano: M.store.get('tamano', 10.5), espacioPreguntas: M.store.get('espacioPreguntas', 0.3),
       fuente: M.store.get('fuente', 'Palatino Linotype'), interlineado: M.store.get('interlineado', 3), hueco: M.store.get('hueco', 2.6)
     };
@@ -30,6 +31,10 @@
     st.textContent = M.Exam.pageCss(M.S);
     sh.innerHTML = M.Exam.html(M.S);
     fitSheet();
+    const exam = M.S;
+    M.Exam.prepareLiterature(exam).then((changed) => {
+      if (changed && M.S === exam) M.preview();
+    }).catch(() => { /* Si Collatinus no responde, conservar texto sin alterar. */ });
   }, 80);
   function fitSheet() {
     const pv = $('#preview'), sh = $('#sheet');
@@ -128,7 +133,7 @@
   async function setLemma(t, lid) {
     const cd = t.cands.find((c) => c.lid === lid); if (!cd) return;
     const morpho = cd.morphos[0] || '';
-    const info = await M.call('tokenInfo', { lid, morpho });
+    const info = await M.call('tokenInfo', { lid, morpho, word: t.w });
     t.sel = { lid, morpho }; t.lemma = cd.lemma; t.proper = cd.proper;
     if (info) Object.assign(t, info);
     // participio + sum
@@ -143,10 +148,11 @@
     ed.innerHTML = `
       <div class="card">
         <h3>Cabecera</h3>
-        <label>Documento<select class="documentMode"><option value="examen">Examen</option><option value="repaso">Texto de repaso</option></select></label>
+        <label>Tipo de documento<select class="documentMode"><option value="parcial">Examen parcial</option><option value="final">Examen final</option><option value="repaso">Texto de repaso</option></select></label>
         <div class="grid2">
-          <label>Primera casilla<input type="text" data-k="tipo"></label>
-          <label>Materia<input type="text" data-k="asig"></label>
+          <label>Primera casilla (editable)<input type="text" data-k="tipo"></label>
+          <label class="trimestreField">Trimestre<select class="trimestre"><option value="1">1.r trimestre</option><option value="2">2.º trimestre</option><option value="3">3.r trimestre</option></select></label>
+          <label class="asigField">Materia (textos de repaso)<input type="text" data-k="asig"></label>
         </div>
       </div>
       <div class="card">
@@ -202,12 +208,29 @@
       inp.value = S.literatura[inp.dataset.lit] || '';
       inp.oninput = () => { S.literatura[inp.dataset.lit] = inp.value; changed(); };
     }
-    $('.documentMode', ed).value = S.documento || 'examen';
+    // Los archivos .examen anteriores guardaban documento='examen' y
+    // tipo='Examen'/'Repaso'. Conservar títulos personalizados.
+    if (!DOCS[S.documento]) S.documento = 'parcial';
+    if (!S.tipo || S.tipo === 'Examen' || S.tipo === 'Repaso') S.tipo = DOCS[S.documento];
+    if (!['1', '2', '3'].includes(String(S.trimestre))) S.trimestre = '1';
+    const updateHeaderControls = () => {
+      $('.trimestreField', ed).classList.toggle('hidden', S.documento === 'repaso');
+      $('.asigField', ed).classList.toggle('hidden', S.documento !== 'repaso');
+    };
+    $('.documentMode', ed).value = S.documento;
+    $('.trimestre', ed).value = String(S.trimestre);
+    updateHeaderControls();
     $('.documentMode', ed).onchange = (e) => {
-      const previous = S.documento === 'repaso' ? 'Repaso' : 'Examen';
+      const previous = DOCS[S.documento];
       S.documento = e.target.value;
-      if (!S.tipo || S.tipo === previous) S.tipo = S.documento === 'repaso' ? 'Repaso' : 'Examen';
+      if (!S.tipo || S.tipo === previous) S.tipo = DOCS[S.documento];
       $('[data-k="tipo"]', ed).value = S.tipo;
+      updateHeaderControls();
+      changed();
+    };
+    $('.trimestre', ed).onchange = (e) => {
+      S.trimestre = e.target.value;
+      M.store.set('trimestre', S.trimestre);
       changed();
     };
     for (const inp of $$('[data-k]', ed)) {
@@ -313,7 +336,7 @@
       if (uc) cls.push('u', 'u' + uc);
       if (S.vocMode === 'elegir' && t.sel && onLids.has(t.sel.lid)) cls.push('inv');
       if (!t.sel) cls.push('unk');
-      h += `<span class="${cls.join(' ')}" data-i="${t.i}" title="${esc(t.lemma || 'forma desconocida')}">${esc(t.w)}</span>`;
+      h += `<span class="${cls.join(' ')}" data-i="${t.i}" title="${esc(t.lemma || 'forma desconocida')}">${esc(t.lig || t.w)}</span>`;
       pos = t.e;
     }
     h += esc(text.slice(pos));
@@ -536,6 +559,17 @@
     M.S = S;
     M.renderEditor(); M.preview();
     if (S.texto && S.texto !== S.textAnalyzed) M.analyzeNow();
+    else if (S.texto && Array.isArray(S.tokens) &&
+      S.tokens.some((t) => /(ae|oe)/i.test(t.w || '') && t.lig === undefined)) {
+      // Actualización no destructiva de .examen antiguos: no volvemos a
+      // lematizar ni tocamos la selección manual o los subrayados.
+      const tokens = S.tokens, original = S.texto;
+      M.call('ligateTokens', { tokens }).then((words) => {
+        if (M.S !== S || S.texto !== original || S.tokens !== tokens) return;
+        tokens.forEach((t, i) => { if (typeof words[i] === 'string') t.lig = words[i]; });
+        renderWords(); M.preview();
+      }).catch(() => {});
+    }
   };
 })();
 
