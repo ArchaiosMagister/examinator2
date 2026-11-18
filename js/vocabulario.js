@@ -23,7 +23,9 @@
       const k = lemma(r.lema || head);
       if (!k || seen.has(k)) throw new Error(`Entrada ${i + 1}: lema vacío o repetido (${k}).`);
       seen.add(k);
-      return { lema: r.lema || head.split(',')[0].trim(), head, trad, formas: forms, note: String(r.note || '') };
+      return { lema: r.lema || head.split(',')[0].trim(), head, trad, formas: forms,
+        note: String(r.note || ''),
+        ...(r.glosasSeparadas === true ? { glosasSeparadas: true } : {}) };
     });
   };
   V.rows = () => M.store.get('vocabulario', []);
@@ -59,7 +61,8 @@
       lema: previous ? previous.lema : String(base).split(/[, (]/)[0],
       head, trad,
       formas: previous && Array.isArray(previous.formas) ? previous.formas : [],
-      note: String(item.note || '').trim()
+      note: String(item.note || '').trim(),
+      ...(item.glosasSeparadas === true ? { glosasSeparadas: true } : {})
     };
     const next = rows.slice();
     if (i >= 0) next[i] = row; else next.push(row);
@@ -78,7 +81,7 @@
     for (const e of entries) {
       const t = (M.S.tokens || []).find((t) => t.sel && t.sel.lid === e.lid);
       const preferred = V.find([t && t.lplain, t && t.lemma, e.head]);
-      if (preferred) Object.assign(e, { head: preferred.head, trad: preferred.trad, note: preferred.note, preferred: true });
+      if (preferred) Object.assign(e, { head: preferred.head, trad: preferred.trad, note: preferred.note, glosasSeparadas: preferred.glosasSeparadas === true, preferred: true });
     }
     return entries;
   };

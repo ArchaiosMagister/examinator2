@@ -14,6 +14,15 @@ const ppath = 'data/modificacion-preverbial-docente.json';
 const xpath = 'data/prefijos-docente.json';
 const fonetica = read(fpath), latinismos = read(lpath);
 const preverbios = read(ppath), prefijos = read(xpath);
+/* Correcciones editoriales propias de Examinator2: no modificar el origen.
+ * Conservar las grafías también en futuras sincronizaciones del banco.
+ */
+for (const item of latinismos.items || []) {
+  if (item.number === 7 && /^ad kalendas graecas$/i.test(item.prompt))
+    item.prompt = 'ad kalendas Graecas';
+  if (item.number === 29 && /^ex (?:ae|æ)quo$/i.test(item.prompt))
+    item.prompt = 'ex æquo';
+}
 if (fonetica.esquema !== 'evoluciones-latin-castellano/v1' ||
     !Array.isArray(fonetica.normas) || !Array.isArray(fonetica.items) ||
     fonetica.items.some((x) => !x.id || !x.latin || !Array.isArray(x.normas)) ||

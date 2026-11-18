@@ -18,5 +18,7 @@ jobs:
         run: npm install --no-save --package-lock=false playwright@1.56.1
       - name: Generar PDF real en iPad y verificar filas Guardar/Guardada
         run: node tests/ios-pdf-browser.cjs
+      - name: Comprobar foco, ancho literario y vocabulario en WebKit/Chromium
+        run: node tests/vocab-layout-browser.cjs
       - name: Verificar temas en WebKit y Chromium con iPhone y escritorio
         run: node tests/themes-browser.cjs

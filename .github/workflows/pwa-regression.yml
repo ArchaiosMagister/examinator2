@@ -26,6 +26,8 @@ jobs:
         run: node tests/theme-modes.cjs
       - name: Diptongos æ/œ y excepciones filológicas
         run: node tests/vocab-ligatures.cjs
+      - name: Glosas de sintagmas y diptongos de pregunta 4
+        run: node tests/vocab-gloss-ligatures.cjs
       - name: Ligaduras de texto, literatura y cabeceras de examen
         run: node tests/latin-text-header.cjs
       - name: Correcciones docentes persistentes del vocabulario
