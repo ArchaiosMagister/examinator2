@@ -9,22 +9,23 @@ on:
 jobs:
   visual:
     runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.56.1-noble
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Instalar navegador real Chromium y WebKit
+      - name: Usar Chromium y WebKit preinstalados
         run: |
           npm install --no-save --package-lock=false playwright@1.56.1
-          npx playwright install --with-deps chromium webkit
+          node -e "const p=require('playwright'); console.log('Chromium:',p.chromium.executablePath(),'WebKit:',p.webkit.executablePath())"
       - name: Verificar maquetación iPhone, iPad, escritorio y biblioteca
         run: node tests/visual/browser.cjs
       - name: Instalar renderizadores de documentos
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libreoffice-writer poppler-utils python3-pil
+          apt-get update -qq
+          apt-get install -y --no-install-recommends libreoffice-writer poppler-utils python3-pil
       - name: Comparar visualmente PDF y Word
         run: python3 tests/visual/documents.py
       - name: Conservar capturas y documentos para diagnóstico
