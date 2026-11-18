@@ -42,7 +42,7 @@
     const S = M.S;
     const html = `
       <div class="field"><label>Tipo de letra del examen</label><select class="sf">${FONTS.map((f) => `<option value="${f}">${f === 'PalemonasMUFI' ? 'Palemonas MUFI' : f}</option>`).join('')}</select>
-        <span class="small muted">Palatino y Palemonas MUFI se usan si están instaladas. Gentium Book Plus está incluida como alternativa. En iPad el PDF con texto real usa Roboto Unicode incrustada.</span></div>
+        <span class="small muted">Palatino y Palemonas MUFI se usan si están instaladas. Gentium Book Plus está incluida como alternativa. El PDF directo de iPad usa Roboto Unicode; «Imprimir / PDF» utiliza la fuente local (Palatino cuando está disponible).</span></div>
       <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
       <div class="field"><label>Espacio entre preguntas (cm)</label><input class="sq" type="number" min="0" max="10" step="0.1"></div>
       <div class="field"><label>Interlineado del texto latino</label><select class="si"><option value="2">doble</option><option value="2.5">2,5</option><option value="3">triple</option><option value="3.5">3,5</option></select></div>
@@ -82,6 +82,11 @@
     $('#btnSettings').onclick = settings;
     $('#btnDocx').onclick = () => exportDocx().catch((e) => M.toast('Error: ' + e.message, 6000));
     $('#btnPdf').onclick = () => exportPdf().catch((e) => M.toast('Error: ' + e.message, 6000));
+    // No await: Safari necesita que window.print() nazca de un toque real.
+    $('#btnPrintPdf').onclick = () => {
+      try { window.EXPrint.open(M.S); }
+      catch (e) { M.toast('No se pudo preparar la impresión: ' + e.message, 6000); }
+    };
     window.api.on('fatal', (msg) => M.toast('Error del motor: ' + msg, 10000));
     M.lists = await M.call('lists');
     const saved = M.store.get('current', null);
