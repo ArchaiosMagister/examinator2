@@ -294,6 +294,10 @@ function latinWordLigatures(word, lid) {
   return results[0];
 }
 
+function ligateTokens({ tokens }) {
+  return (tokens || []).map((t) => latinWordLigatures(t.w, t.sel && t.sel.lid));
+}
+
 function ligateText({ text }) {
   text = String(text || '');
   if (!text || !/(ae|oe)/i.test(text)) return text;
@@ -387,7 +391,7 @@ function work({ urn }) {
 const api = {
   status() { return { dataRoot }; },
   warm() { L(); preverbIndex(); return true; },
-  analyze, tokenInfo, vocabEntries, lookup, ligateText,
+  analyze, tokenInfo, vocabEntries, lookup, ligateText, ligateTokens,
   lists() { const o = {}; for (const n of LIST_NAMES) o[n] = readList(n); return o; },
   saveList({ name, data }) {
     if (!LIST_NAMES.includes(name)) throw new Error('lista desconocida');
