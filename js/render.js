@@ -53,6 +53,12 @@
     return result !== source;
   };
 
+  E.vocabGlosses = (v) => {
+    const trad = String(v.trad || '');
+    return v.glosasSeparadas
+      ? trad.split('|').map((g) => g.trim()).filter(Boolean).map((g) => '‘' + g + '’').join(' ')
+      : '‘' + trad + '’';
+  };
   E.vocabList = function (S) {
     const out = (S.vocabItems || []).filter((v) => v.on);
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
@@ -158,7 +164,7 @@
 <div class="hdr"><div class="hdr-row"><span>${esc(E.headerLeft(S))}</span><span>${esc(E.headerRight(S))}</span></div><div class="hdr-row"><span>Nombre y apellidos:</span><span>Fecha:</span></div></div>
 <div class="ttl">${S.titulo ? `<div class="t">${esc(S.titulo)}</div>` : ''}${ref ? `<div class="r">${ref}</div>` : ''}${!S.titulo && !ref ? '&nbsp;' : ''}</div>
 <div class="txt">${runsHtml(E.textRuns(S)) || '&nbsp;'}</div>
-${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ‘${esc(v.trad)}’${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
+${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ${esc(E.vocabGlosses(v))}${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
 <ol class="q">
 ${E.questionList(S).map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
 </ol>
@@ -216,7 +222,7 @@ ${E.pageCss(S)}
     const voc = E.vocabList(S);
     if (voc.length) {
       const ps = [para([{ t: 'Vocabulario', b: true }], sp0 + '<w:jc w:val="center"/>')]
-        .concat(voc.map((v) => para([{ t: v.head + ':', i: true }, { t: ' ‘' + v.trad + '’' + (v.note ? ' (' + v.note + ')' : '') }], sp0 + '<w:ind w:left="284" w:hanging="284"/>')));
+        .concat(voc.map((v) => para([{ t: v.head + ':', i: true }, { t: ' ' + E.vocabGlosses(v) + (v.note ? ' (' + v.note + ')' : '') }], sp0 + '<w:ind w:left="284" w:hanging="284"/>')));
       body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${bd(6)}</w:tblBorders><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${W}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/></w:tcPr>${ps.join('')}</w:tc></w:tr></w:tbl>`;
       body += para([{ t: '' }], sp0);
     }
