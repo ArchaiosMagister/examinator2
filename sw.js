@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v1.1.2-literature-question-20261118';
+const VERSION = 'examinator2-v1.1.3-literature-gap-20261118';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
