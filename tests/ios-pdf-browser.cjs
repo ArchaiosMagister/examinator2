@@ -97,22 +97,25 @@ const server=http.createServer((req,res)=>{
           root.innerHTML=row(false)+row(true);
           document.querySelector('#editor').appendChild(root);
         });
-        const positions=await page.evaluate(()=>{
-          const rows=[...document.querySelectorAll('#testRows .vrow')];
-          return rows.map(row=>{
-            const fields=['.von','.vh','.vt','.vn','.vsave','.xbtn'];
-            return fields.map(f=>{
-              const x=row.querySelector(f).getBoundingClientRect();
-              return {left:Math.round(x.left*10)/10,width:Math.round(x.width*10)/10};
+        for (const viewport of [{width:820,height:1180},{width:390,height:844}]) {
+          await page.setViewportSize(viewport);
+          const positions=await page.evaluate(()=>{
+            const rows=[...document.querySelectorAll('#testRows .vrow')];
+            return rows.map(row=>{
+              const fields=['.von','.vh','.vt','.vn','.vsave','.xbtn'];
+              return fields.map(f=>{
+                const x=row.querySelector(f).getBoundingClientRect();
+                return {left:Math.round(x.left*10)/10,width:Math.round(x.width*10)/10};
+              });
             });
           });
-        });
-        for(let i=0;i<6;i++){
-          assert.ok(Math.abs(positions[0][i].left-positions[1][i].left)<0.2,
-            label+' columna '+i+' desplazada: '+JSON.stringify(positions));
+          for(let i=0;i<6;i++){
+            assert.ok(Math.abs(positions[0][i].left-positions[1][i].left)<0.2,
+              label+' '+viewport.width+'px columna '+i+' desplazada: '+JSON.stringify(positions));
+          }
+          assert.equal(positions[0][4].width,90);
+          assert.equal(positions[1][4].width,90);
         }
-        assert.equal(positions[0][4].width,90);
-        assert.equal(positions[1][4].width,90);
         assert.equal(jsErrors.length,0,'Error JS '+jsErrors.join('; '));
         passes.push(label+': PDF '+pdf.size+' bytes y columnas fijas');
         await context.close();
