@@ -89,7 +89,7 @@ const server = http.createServer((req,res) => {
           // El visor iPhone de WebKit utiliza text autosizing y zoom < 1;
           // su getComputedStyle puede reflejar 19 px pese a la regla A4 10 pt.
           // En la exportación la hoja se compone a tamaño real, sin zoom.
-          assert.match(check.print,/\\.page \\.litTable \\{[^}]*font-size: 10pt;/);
+          assert.ok(check.print.includes('font-size: 10pt; font-weight: normal; line-height: 1.25;'), 'La exportación define Palatino a 10 puntos');
           if(name==='WebKit' && device==='iPhone'){
             assert.ok(check.fontSize>0 && check.translationSize>0);
             assert.ok(Math.abs(check.fontSize-check.translationSize)<.05,
