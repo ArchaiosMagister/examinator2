@@ -73,7 +73,7 @@
   const coll = new Intl.Collator('es', { sensitivity: 'base' });
   const abc = (arr) => arr.filter((x) => x && String(x).trim()).map((x) => String(x).trim()).sort((a, b) => coll.compare(a, b));
   E.q4 = function (S) {
-    const p = (S.prev || []).filter((x) => x && x.txt).map((x) => Object.assign({}, x, { txt: x.txt.trim().toLowerCase() })).sort((a, b) => coll.compare(a.txt, b.txt));
+    const p = (S.prev || []).filter((x) => x && x.txt).map((x) => Object.assign({}, x, { txt: M.Propose.prevDisplay(S, x).trim().toLowerCase() })).sort((a, b) => coll.compare(a.txt, b.txt));
     const qa = [{ t: 'Modificación preverbial a partir de ' }];
     if (p.length >= 2) { qa.push({ t: p[0].txt, i: true }, { t: ` (${p[0].n}) y de ` }, { t: p[1].txt, i: true }, { t: ` (${p[1].n}). Cinco derivados en total en lengua propia.` }); }
     else if (p.length === 1) { qa.push({ t: p[0].txt, i: true }, { t: ` (${p[0].n}). Cinco derivados en total en lengua propia.` }); }
@@ -86,9 +86,9 @@
     const commas = (arr) => { const r = []; arr.filter((x) => x && String(x).trim()).forEach((w, k) => { if (k) r.push({ t: ', ' }); r.push({ t: w, i: true }); }); return r; };
     return [
       qa,
-      [{ t: 'Evolución fonética de ' }].concat(items(abc((S.evol || []).map((x) => x && x.w))), [{ t: '.' }]),
+      [{ t: 'Evolución fonética de ' }].concat(items(abc((S.evol || []).map((x) => x && M.Propose.evolDisplay(x.w)))), [{ t: '.' }]),
       [{ t: 'Señala el prefijo y el significado que aporta a estas palabras: ' }].concat(commas(abc((S.pref || []).map((w) => w && M.Propose.prefDisplay(String(w).trim())))), [{ t: '.' }]),
-      [{ t: 'Latinismos: ' }].concat(commas(abc((S.latin || []).map((w) => w && String(w).trim().toLowerCase()))), [{ t: '.' }])
+      [{ t: 'Latinismos: ' }].concat(commas(abc((S.latin || []).map((w) => w && M.Propose.latDisplay(String(w).trim())))), [{ t: '.' }])
     ];
   };
   E.questions = [
