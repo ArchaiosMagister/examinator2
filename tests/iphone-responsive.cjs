@@ -29,7 +29,7 @@ assert.match(html,/data-view="preview"/);
 assert.match(html,/<script src="js\/mobile\.js"><\/script>/);
 assert.match(html,/viewport-fit=cover/);
 assert.match(sw,/"\.\/js\/mobile\.js"/,'Los controles deben funcionar sin conexión');
-assert.match(sw, /examinator2-v15-ios-pdf-stable-vocab-20261118/);
+assert.match(sw, /examinator2-v16-palatino-local-20261118/);
 const mobileCss=css.slice(css.indexOf('/* Pantallas estrechas:'));
 assert.match(mobileCss,/@media \(max-width: 760px\), \(max-width: 950px\) and \(max-height: 550px\)/);
 assert.match(mobileCss,/grid-template-rows: var\(--top-band-height\) 48px var\(--mobile-tabs-height\) minmax\(0,1fr\)/);
