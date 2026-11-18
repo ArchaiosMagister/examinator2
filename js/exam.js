@@ -37,18 +37,22 @@
     }).catch(() => { /* Si Collatinus no responde, conservar texto sin alterar. */ });
   }, 80);
   function fitSheet() {
-    const pv = $('#preview'), sh = $('#sheet');
-    if (!pv || !sh || !pv.clientWidth) return;
-    const mobile = window.matchMedia &&
-      window.matchMedia('(max-width: 760px), (max-width: 950px) and (max-height: 550px)').matches;
+    const pv = $('#preview'), sh = $('#sheet'), sizer = $('#sheetSizer');
+    if (!pv || !sh || !sizer || !pv.clientWidth) return;
+    const mobile = window.matchMedia && window.matchMedia('(max-width: 1100px)').matches;
     const avail = Math.max(1, pv.clientWidth - (mobile ? 20 : 48));
-    // Calcular sobre el tamaño original, no sobre el zoom de un panel
-    // anterior (Safari puede informar medidas ya escaladas).
+    // CSS zoom no reduce correctamente el rectángulo visual en WebKit.
+    // transform conserva la misma escala en Safari, Chromium e impresión,
+    // y el envoltorio reserva el tamaño real para el desplazamiento vertical.
     sh.style.zoom = '1';
-    const w = sh.offsetWidth;
-    if (!w) return;
+    sh.style.transform = 'none';
+    const w = sh.offsetWidth, h = sh.offsetHeight;
+    if (!w || !h) return;
     const z = Math.min(1.25, Math.max(0.2, avail / w));
-    sh.style.zoom = String(z);
+    sh.style.transformOrigin = 'top left';
+    sh.style.transform = 'scale(' + z + ')';
+    sizer.style.width = (w * z) + 'px';
+    sizer.style.height = (h * z) + 'px';
   }
   M.fitSheet = fitSheet;
   window.addEventListener('resize', M.debounce(fitSheet, 100));
