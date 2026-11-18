@@ -48,14 +48,23 @@ const server=http.createServer((req,res)=>{
           window.EXPdf.deliver=(blob,name)=>{window.__exportedPdf=blob;return originalDeliver(blob,name)};
           const b=document.createElement('button');b.textContent='Probar PDF';
           b.id='testPdf';b.style.cssText='position:fixed;z-index:200;top:25px;left:10px;padding:12px;background:#fff';
+          const source='Poeta proelium et caelum videt.';
+          const S={...M.S,documento:'parcial',tipo:'Examen parcial de Latín II',
+            texto:source, titulo:'Prueba de PDF desde iPad',
+            tokens:[
+              {i:0,w:'Poeta',lig:'Poeta',s:0,e:5},
+              {i:1,w:'proelium',lig:'prœlium',s:6,e:14},
+              {i:2,w:'et',s:15,e:17},
+              {i:3,w:'caelum',lig:'cælum',s:18,e:24},
+              {i:4,w:'videt',s:25,e:30}
+            ],
+            subr:[{cat:'n',toks:[1]}],
+            refAutor:'César',refObra:'De bello Gallico',refCita:'I 1',
+            vocabItems:[{on:true,head:'Cæsar, -aris',trad:'César',note:'nombre propio'}],
+            literatura:{texto:'Prœlium ac cælum.',traduccion:'Combate y cielo.',autor:'Virgilio',obra:'Eneida',cita:'IV'}
+          };
           b.onclick=()=>window.api.makePdf({
-            html:M.Exam.printDoc({
-              ...M.S,documento:'parcial',tipo:'Examen parcial de Latín II',
-              texto:'Poeta proelium et caelum videt.\\nCaesar in Gallia pugnavit.',
-              titulo:'Prueba de PDF desde iPad',
-              vocabItems:[{on:true,head:'Caesar, -aris',trad:'César'}]
-            }),
-            defaultName:'examen parcial lat2.pdf'
+            html:M.Exam.printDoc(S),exam:S,defaultName:'examen parcial lat2.pdf'
           }).catch(e=>{window.__pdfError=e.message});
           document.body.appendChild(b);
         });
