@@ -96,15 +96,22 @@ def validate():
     for name,src in [("impresion",PDF),("word",WORD_PDF)]:
         image=raster(src,"cabecera-"+name)
         spans=line_spans(image)
-        # Los dos bordes exteriores de la cabecera deben existir;
-        # tres o más rayas largas ANTES del título indican línea interna.
         assert len(spans)>=2, f"{name}: falta borde exterior, líneas halladas: {spans}"
-        top,bottom=spans[0][0],spans[1][0]
-        assert bottom-top>18, f"{name}: marco excesivamente estrecho: {spans}"
-        assert bottom-top<160, f"{name}: marco excesivamente alto: {spans}"
-        if len(spans)>2 and spans[2][0]-bottom<20:
-            raise AssertionError(f"{name}: posible borde interior de cabecera: {spans}")
-        print(name,"marco exterior (píxeles):",spans[:5])
+        # El título del texto (bajo la cabecera) también tiene dos filetes
+        # próximos; son legítimos y NO deben confundirse con bordes internos.
+        ws = words(src)
+        factor=image.width/595.28  # PDF A4: puntos a píxeles rasterizados
+        exam_y=first(ws,"Examen")[2]*factor
+        name_bottom=first(ws,"Nombre")[4]*factor
+        above=[s for s in spans if s[0]<exam_y-2]
+        below=[s for s in spans if s[0]>name_bottom+2]
+        assert above and below, f"{name}: borde sin correspondencia con las dos filas: {spans}"
+        top=above[-1][0]
+        bottom=below[0][0]
+        assert 18<bottom-top<160, f"{name}: marco de altura incorrecta: {spans}"
+        internal=[s for s in spans if top+4<s[0]<bottom-4]
+        assert not internal, f"{name}: se detectan líneas interiores: {internal}"
+        print(name,"marco exterior (píxeles):",(top,bottom),"otras líneas:",spans)
     print("OK: visualizaciones reales de Word y PDF; cabeceras, márgenes y marco exterior coherentes.")
 
 if __name__ == "__main__":
