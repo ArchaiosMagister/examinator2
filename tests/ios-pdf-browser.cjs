@@ -6,6 +6,8 @@ const http=require('node:http');
 const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
+const os=require('node:os');
+const {spawnSync}=require('node:child_process');
 const {webkit,chromium}=require('playwright');
 const root=path.resolve(__dirname,'..');
 const server=http.createServer((req,res)=>{
@@ -87,6 +89,28 @@ const server=http.createServer((req,res)=>{
         assert.ok(pdf.size>3000,'PDF generado incompleto');
         assert.equal(pdf.name,'examen parcial lat2.pdf');
         assert.ok(pdf.share,'En iPad debe ofrecer Compartir PDF');
+        const base64=await page.evaluate(async()=>{
+          const reader=new FileReader();
+          return await new Promise((resolve,reject)=>{
+            reader.onload=()=>resolve(String(reader.result).split(',')[1]);
+            reader.onerror=()=>reject(reader.error);
+            reader.readAsDataURL(window.__exportedPdf);
+          });
+        });
+        const outfile=path.join(os.tmpdir(),'examinator-selectable-'+(label.startsWith('WebKit')?'webkit':'chromium')+'.pdf');
+        fs.writeFileSync(outfile,Buffer.from(base64,'base64'));
+        const extracted=spawnSync('pdftotext',['-layout',outfile,'-'],{encoding:'utf8'});
+        assert.equal(extracted.status,0,'pdftotext debe leer el PDF exportado');
+        assert.match(extracted.stdout,/Examen parcial de Latín II/);
+        assert.match(extracted.stdout,/Cæsar/,'Unicode de vocabulario seleccionable');
+        assert.match(extracted.stdout,/prœlium/,'Ligadura latina en texto PDF real');
+        assert.match(extracted.stdout,/cælum/,'Ligadura en texto PDF real');
+        assert.match(extracted.stdout,/Literatura/);
+        assert.match(extracted.stdout,/1 \| [1-9]/,'Contador de páginas como en Word');
+        const images=spawnSync('pdfimages',['-list',outfile],{encoding:'utf8'});
+        assert.equal(images.status,0);
+        assert.ok(images.stdout.trim().split('\n').length<=2,
+          'El PDF no debe contener páginas rasterizadas como imágenes: '+images.stdout.slice(0,400));
         await page.getByRole('button',{name:'Compartir PDF'}).click();
         const shared=await page.evaluate(()=>window.__sharedFile);
         assert.equal(shared.name,pdf.name);
