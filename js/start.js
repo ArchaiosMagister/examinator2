@@ -4,23 +4,34 @@
   const { $ } = M;
   const FONTS = ['Palatino', 'Palatino Linotype', 'Book Antiqua', 'Times New Roman', 'Garamond', 'Cambria', 'Georgia', 'Gentium Book Plus'];
 
-  const baseName = () => {
-    const S = M.S;
+  const baseName = (S = M.S) => {
     const t = [S.tipo || 'Examen', S.asig || '', S.refAutor || '', S.refCita || ''].filter(Boolean).join(' ');
     return t.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'Examen';
   };
+  let exportingWord = false, exportingPdf = false;
   async function exportDocx() {
-    const data = await M.Exam.docx(M.S);
-    const p = await window.api.saveFile({ defaultName: baseName() + '.docx', filters: [{ name: 'Documento de Word', extensions: ['docx'] }], data, encoding: 'base64' });
-    if (p) done(p); else if (window.api.web) M.toast('Documento de Word descargado.');
+    if (exportingWord) return;
+    exportingWord = true;
+    const exam = M.S;
+    try {
+      const data = await M.Exam.docx(exam);
+      const p = await window.api.saveFile({ defaultName: baseName(exam) + '.docx', filters: [{ name: 'Documento de Word', extensions: ['docx'] }], data, encoding: 'base64' });
+      if (p) done(p); else if (window.api.web) M.toast('Documento de Word descargado.');
+    } finally { exportingWord = false; }
   }
   async function exportPdf() {
-    // Garantizar la misma grafía de los textos de literatura en PDF y Word.
-    await M.Exam.prepareLiterature(M.S);
-    const p = await window.api.makePdf({ html: M.Exam.printDoc(M.S), defaultName: baseName() + '.pdf' });
-    if (p && p.prepared) return; // En iPad: diálogo con enlace y compartir PDF ya mostrado.
-    if (p) done(p);
-    else if (window.api.web) M.toast('En el diálogo de impresión elige «Guardar como PDF».', 6000);
+    if (exportingPdf) return;
+    exportingPdf = true;
+    const exam = M.S;
+    try {
+      // Preparar siempre el mismo examen del comienzo al fin de la exportación.
+      await M.Exam.prepareLiterature(exam);
+      if (M.S !== exam) return;
+      const p = await window.api.makePdf({ html: M.Exam.printDoc(exam), defaultName: baseName(exam) + '.pdf' });
+      if (p && p.prepared) return; // iPad: descarga/compartición ya ofrecidas.
+      if (p) done(p);
+      else if (window.api.web) M.toast('En el diálogo de impresión elige «Guardar como PDF».', 6000);
+    } finally { exportingPdf = false; }
   }
   function done(p) {
     M.modal('Examen guardado', `<p>Se ha guardado en:</p><p class="small" style="word-break:break-all">${M.esc(p)}</p>`, [
@@ -75,7 +86,7 @@
 
   async function init() {
     $('#btnNew').onclick = () => M.modal('Examen nuevo', '<p>¿Empezar un examen nuevo? Se borrará el que estás editando (guárdalo antes si lo quieres conservar).</p>', [{ label: 'Cancelar' }, { label: 'Empezar', primary: true, onclick: () => { M.loadExam(M.newExam()); } }]);
-    $('#btnOpen').onclick = openExam;
+    $('#btnOpen').onclick = () => openExam().catch((e) => M.toast('No se pudo abrir el examen: ' + e.message, 6000));
     $('#btnSave').onclick = saveExam;
     $('#btnLib').onclick = () => M.openLibrary();
     $('#btnLists').onclick = () => M.openLists();
@@ -85,7 +96,10 @@
     window.api.on('fatal', (msg) => M.toast('Error del motor: ' + msg, 10000));
     M.lists = await M.call('lists');
     const saved = M.store.get('current', null);
-    M.loadExam(saved ? Object.assign(M.newExam(), saved) : M.newExam());
+    // Una preferencia dañada no debe impedir abrir la aplicación.
+    const valid = saved && typeof saved === 'object' && !Array.isArray(saved) &&
+      typeof saved.texto === 'string';
+    M.loadExam(valid ? Object.assign(M.newExam(), saved) : M.newExam());
   }
   window.addEventListener('DOMContentLoaded', init);
 })();

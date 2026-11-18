@@ -60,32 +60,40 @@
     const text = S.texto || '';
     if (!force && text === S.textAnalyzed) return;
     const my = ++anaSeq;
+    // Un resultado tardío no debe aplicarse a otro examen ni a otro texto.
+    const current = () => my === anaSeq && M.S === S && S.texto === text;
     $('#busy').classList.remove('hidden');
     try {
       const toks = text.trim() ? await M.call('analyze', { text }) : [];
-      if (my !== anaSeq) return;
+      if (!current()) return;
       S.tokens = toks; S.textAnalyzed = text;
-      await rebuildVocab(true);
+      await rebuildVocab(true, S);
+      if (!current()) return;
       P.underline(S);
       P.preverbs(S);
-    } catch (e) { M.toast('No se pudo analizar el texto: ' + e.message, 6000); }
-    finally { if (my === anaSeq) $('#busy').classList.add('hidden'); }
+    } catch (e) {
+      if (current()) M.toast('No se pudo analizar el texto: ' + e.message, 6000);
+    } finally {
+      if (current()) $('#busy').classList.add('hidden');
+    }
+    if (!current()) return;
     renderWords(); renderVocab(); renderSubr(); renderQ4(); changed();
   };
   const analyzeSoon = M.debounce(() => M.analyzeNow(), 700);
 
   /* ---------- vocabulario ---------- */
-  function textLids() {
+  function textLids(S = M.S) {
     const seen = new Set(); const out = [];
-    for (const t of M.S.tokens || []) if (t.sel && !seen.has(t.sel.lid)) { seen.add(t.sel.lid); out.push(t.sel.lid); }
+    for (const t of S.tokens || []) if (t.sel && !seen.has(t.sel.lid)) { seen.add(t.sel.lid); out.push(t.sel.lid); }
     return out;
   }
-  async function rebuildVocab(fromText) {
-    const S = M.S;
-    const lids = textLids();
+  async function rebuildVocab(fromText, S = M.S) {
+    const tokens = S.tokens;
+    const lids = textLids(S);
     const old = new Map((S.vocabItems || []).filter((v) => v.lid).map((v) => [v.lid, v]));
     const need = lids.filter((l) => !old.has(l));
     const fresh = need.length ? await M.vocabEntries({ lids: need, mode: S.qty }) : [];
+    if (M.S !== S || S.tokens !== tokens) return;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     const items = [];
     for (const lid of lids) {
@@ -107,7 +115,8 @@
   }
   M.refreshVocab = async function () {
     const S = M.S;
-    const fresh = await M.vocabEntries({ lids: textLids(), mode: S.qty });
+    const fresh = await M.vocabEntries({ lids: textLids(S), mode: S.qty });
+    if (M.S !== S) return;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     for (const v of S.vocabItems || []) if (fm.has(v.lid)) {
       const e = fm.get(v.lid);
@@ -117,7 +126,8 @@
       v.preferred = !!e.preferred;
     }
     S.vocabItems = S.vocabItems.filter((v) => !v.customWord);
-    await rebuildVocab(false);
+    await rebuildVocab(false, S);
+    if (M.S !== S) return;
     renderVocab(); renderWords(); changed();
   };
   async function requantify() {
@@ -125,6 +135,7 @@
     const lids = S.vocabItems.filter((v) => v.lid && !v.eHead).map((v) => v.lid);
     if (!lids.length) return;
     const fresh = await M.vocabEntries({ lids, mode: S.qty });
+    if (M.S !== S) return;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     for (const v of S.vocabItems) if (v.lid && !v.eHead && fm.has(v.lid)) v.head = fm.get(v.lid).head;
   }
@@ -133,11 +144,14 @@
   async function setLemma(t, lid) {
     const cd = t.cands.find((c) => c.lid === lid); if (!cd) return;
     const morpho = cd.morphos[0] || '';
+    const S = M.S;
     const info = await M.call('tokenInfo', { lid, morpho, word: t.w });
+    if (M.S !== S || !S.tokens.includes(t)) return;
     t.sel = { lid, morpho }; t.lemma = cd.lemma; t.proper = cd.proper;
     if (info) Object.assign(t, info);
     // participio + sum
-    await rebuildVocab(false);
+    await rebuildVocab(false, S);
+    if (M.S !== S) return;
     renderWords(); renderVocab(); renderSubr(); changed();
   }
 
@@ -556,6 +570,8 @@
   }
 
   M.loadExam = function (S) {
+    ++anaSeq; // invalidar respuestas pendientes del examen anterior
+    $('#busy').classList.add('hidden');
     M.S = S;
     M.renderEditor(); M.preview();
     if (S.texto && S.texto !== S.textAnalyzed) M.analyzeNow();

@@ -14,8 +14,17 @@ Dos formas de usarla:
    GitHub Pages, Netlify...) y comparte la direccion de index.html.
 
 Diferencias con la version de escritorio:
-- "Exportar PDF" abre la ventana de impresion del navegador: elige "Guardar como PDF".
+- "Exportar PDF" abre la impresion del navegador en escritorio y Android.
+  En iPad/iPhone ofrece descargar o compartir directamente el PDF. Como antes,
+  el PDF directo del iPad se compone con imagenes de las paginas.
 - "Exportar Word" y "Guardar" descargan el archivo en la carpeta de Descargas.
 - Los textos descargados y las listas modificadas se guardan en el propio navegador
   (si se borran los datos de navegacion, se pierden; el resto sigue igual).
 - La primera carga tarda unos segundos (el diccionario ocupa unos 9 MB).
+
+VERSION ESTABLE 1.0.0
+- No cambia el funcionamiento ni los bancos academicos.
+- Se han reforzado la estabilidad al cambiar de examen durante el analisis,
+  la importacion/cancelacion de archivos y las exportaciones concurrentes.
+- Para actualizar la webapp instalada, pulsa "Actualizar". El guardado del
+  examen abierto y los datos de la biblioteca permanecen locales.

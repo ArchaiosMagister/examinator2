@@ -73,7 +73,12 @@
     if (location.protocol === 'file:') { const r = new FileReader(); r.onload = () => go(r.result); r.readAsDataURL(blob); }
     else go(URL.createObjectURL(blob));
   }
-  const cfgGet = () => { try { return JSON.parse(localStorage.getItem('examinator.config') || '{}'); } catch (e) { return {}; } };
+  const cfgGet = () => {
+    try {
+      const value = JSON.parse(localStorage.getItem('examinator.config') || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (_) { return {}; }
+  };
   window.api = {
     web: true,
     call: async (method, args) => {
@@ -85,9 +90,23 @@
     getConfig: async () => cfgGet(),
     setConfig: async (patch) => { const c = Object.assign(cfgGet(), patch); try { localStorage.setItem('examinator.config', JSON.stringify(c)); } catch (e) { /* */ } return c; },
     saveFile: async ({ defaultName, data, encoding }) => { download(defaultName, data, encoding, /\.docx$/.test(defaultName) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : null); return null; },
-    openFile: () => new Promise((resolve) => {
+    openFile: () => new Promise((resolve, reject) => {
       const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.examen,.json';
-      inp.onchange = () => { const f = inp.files[0]; if (!f) return resolve(null); const r = new FileReader(); r.onload = () => resolve({ path: f.name, text: r.result }); r.readAsText(f); };
+      let finished = false;
+      const finish = (result, error) => {
+        if (finished) return;
+        finished = true;
+        if (error) reject(error); else resolve(result);
+      };
+      inp.addEventListener('cancel', () => finish(null), { once: true });
+      inp.onchange = () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return finish(null);
+        const r = new FileReader();
+        r.onload = () => finish({ path: f.name, text: r.result });
+        r.onerror = () => finish(null, new Error('No se pudo leer el examen seleccionado.'));
+        r.readAsText(f);
+      };
       inp.click();
     }),
     makePdf: async ({ html, defaultName }) => {
