@@ -106,7 +106,7 @@ const server=http.createServer((req,res)=>{
         assert.match(extracted.stdout,/prœlium/,'Ligadura latina en texto PDF real');
         assert.match(extracted.stdout,/cælum/,'Ligadura en texto PDF real');
         assert.match(extracted.stdout,/Literatura/);
-        assert.match(extracted.stdout,/1 \| [1-9]/,'Contador de páginas como en Word');
+        assert.match(extracted.stdout,/\b1\s*\|\s*[1-9]\b/,'Contador de páginas como en Word: '+extracted.stdout.slice(-250));
         const images=spawnSync('pdfimages',['-list',outfile],{encoding:'utf8'});
         assert.equal(images.status,0);
         assert.ok(images.stdout.trim().split('\n').length<=2,
