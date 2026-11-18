@@ -8,7 +8,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
-const ctx={console,setTimeout,clearTimeout,Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,Buffer,location:{href:'https://example.org/examinator2/'}};
+const ctx={console,setTimeout,clearTimeout,URL,Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,Buffer,location:{href:'https://example.org/examinator2/'}};
 ctx.window=ctx;
 vm.createContext(ctx);
 const run=(p)=>vm.runInContext(read(p),ctx,{filename:p});
