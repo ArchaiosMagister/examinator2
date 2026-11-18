@@ -144,7 +144,7 @@
 .page .litTable { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 6pt 0 0;
   font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', 'Gentium Book Plus', serif;
   font-size: 10pt; font-weight: normal; line-height: 1.25;
-  -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  -webkit-text-size-adjust: none; text-size-adjust: none; }
 .page .litTable td { width: 50%; padding: 5pt 7pt; border: .5pt solid #555;
   vertical-align: top; white-space: pre-wrap; overflow-wrap: break-word; font-weight: normal; }
 .page .litTable .litLatin { font-style: italic; }
