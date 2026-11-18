@@ -22,6 +22,8 @@ jobs:
         run: node tests/regression.cjs
       - name: Diptongos æ/œ y excepciones filológicas
         run: node tests/vocab-ligatures.cjs
+      - name: Ligaduras de texto, literatura y cabeceras de examen
+        run: node tests/latin-text-header.cjs
       - name: Correcciones docentes persistentes del vocabulario
         run: node tests/vocab-save.cjs
       - name: PWA y bancos académicos sin conexión
