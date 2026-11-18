@@ -121,19 +121,25 @@
 
     const vocabulary = E.vocabList(S);
     if (vocabulary.length) {
-      const rows = [{ text: 'Vocabulario', bold: true, alignment: 'center', margin: [0, 0, 0, 1] }];
+      const body = [[{ text: 'Vocabulario', bold: true, alignment: 'center' }]];
       vocabulary.forEach((v) => {
-        rows.push({
+        body.push([{
           text: [
             { text: String(v.head || '') + ':', italics: true },
             { text: ' ‘' + String(v.trad || '') + '’' + (v.note ? ' (' + v.note + ')' : '') }
-          ],
-          margin: [0, 0, 0, 0]
-        });
+          ]
+        }]);
       });
+      // Una fila por entrada permite que el glosario continúe en otra
+      // página si es extenso. No usar una única fila irrompible, porque
+      // cortaría o desplazaría glosarios de varias decenas de palabras.
       content.push({
-        table: { widths: ['*'], dontBreakRows: true, body: [[{ stack: rows }]] },
-        layout: outlined,
+        table: { widths: ['*'], headerRows: 1, dontBreakRows: true, body },
+        layout: {
+          ...outlined,
+          paddingTop: (i) => i === 0 ? 3 : 0,
+          paddingBottom: (i, node) => i === node.table.body.length - 1 ? 4 : 0
+        },
         margin: [0, 6, 0, 10]
       });
     }
