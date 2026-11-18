@@ -514,16 +514,16 @@
       : 'sin filtro';
     box.innerHTML = `
       <div class="q4b"><div class="q4t">a. Modificación preverbial <span class="muted small">(${nPrev ? nPrev + (nPrev === 1 ? ' verbo de la lista en el texto' : ' verbos de la lista en el texto') : 'ningún verbo de la lista en el texto todavía'})</span></div>
-        ${[0, 1].map((k) => `<div class="qrow"><input type="text" class="it" data-q="prev" data-k="${k}" value="${esc((S.prev[k] || {}).txt || '')}"><select data-q="prevn" data-k="${k}"><option value="3">3 derivados</option><option value="2">2 derivados</option></select><button class="tbtn sm" data-act="prevOne" data-k="${k}">Otro</button></div>`).join('')}
+        ${[0, 1].map((k) => `<div class="qrow"><input type="text" class="it" data-q="prev" data-k="${k}" value="${esc(P.prevDisplay(S, S.prev[k] || {}))}"><select data-q="prevn" data-k="${k}"><option value="3">3 derivados</option><option value="2">2 derivados</option></select><button class="tbtn sm" data-act="prevOne" data-k="${k}">Otro</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">b. Evolución fonética <span class="muted small">(cuatro fenómenos distintos)</span><button class="tbtn sm" data-act="evolFilter">Seleccionar normas</button><span class="muted small">${evolStatus}</span></div>
-        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="evol" data-k="${k}" value="${esc((S.evol[k] || {}).w || '')}"><span class="fen small muted">${esc((S.evol[k] || {}).g || '')}</span><button class="tbtn sm" data-act="evolOne" data-k="${k}">Otra</button></div>`).join('')}
+        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="evol" data-k="${k}" value="${esc(P.evolDisplay((S.evol[k] || {}).w || ''))}"><span class="fen small muted">${esc((S.evol[k] || {}).g || '')}</span><button class="tbtn sm" data-act="evolOne" data-k="${k}">Otra</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">c. Prefijos</div>
         ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="pref" data-k="${k}" value="${esc(S.pref[k] || '')}"><button class="tbtn sm" data-act="prefOne" data-k="${k}">Otra</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">d. Latinismos <button class="tbtn sm" data-act="latinFilter">Intervalo y paridad</button><span class="muted small">${latinStatus}</span></div>
-        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="latin" data-k="${k}" value="${esc(S.latin[k] || '')}"><button class="tbtn sm" data-act="latOne" data-k="${k}">Otro</button></div>`).join('')}
+        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="latin" data-k="${k}" value="${esc(P.latDisplay(S.latin[k] || ''))}"><button class="tbtn sm" data-act="latOne" data-k="${k}">Otro</button></div>`).join('')}
       </div>`;
     $$('select[data-q=prevn]', box).forEach((s) => { s.value = String((S.prev[+s.dataset.k] || {}).n || (s.dataset.k === '0' ? 3 : 2)); });
     box.oninput = (e) => {
