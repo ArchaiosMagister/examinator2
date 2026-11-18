@@ -45,7 +45,9 @@
     const source = L.texto;
     const hit = latinLiteratureCache.get(L);
     if (hit && hit.source === source) return false;
-    const result = await M.call('ligateText', { text: source });
+    let result;
+    try { result = await M.call('ligateText', { text: source }); }
+    catch (_) { return false; /* La exportación debe funcionar aun sin Collatinus. */ }
     if (S.literatura !== L || L.texto !== source) return false;
     latinLiteratureCache.set(L, { source, value: result });
     return result !== source;
