@@ -128,7 +128,13 @@ module.exports = (async () => {
     literatura: { texto: 'At regina gravi\nvolnus alit', traduccion: '', autor: 'Virgilio', obra: 'Aeneis', cita: 'IV 1–2' } };
   const css = ctx.M.Exam.pageCss(S);
   assert.match(css, /font-size: 10.5pt/); assert.match(css, /margin: 0 0 0cm/); assert.match(css, /margin-bottom: 0cm/);
-  const html = ctx.M.Exam.html(S); assert.match(html, /At regina gravi\nvolnus alit/); assert.match(html, /litTranslation"><\/div>/);
+  const html = ctx.M.Exam.html(S);
+  assert.match(html, /At regina gravi\nvolnus alit/);
+  assert.match(html, /<li class="literatureQuestion">Literatura\. Indique el autor y obra/);
+  assert.match(html, /<table class="litTable"><tbody><tr>/);
+  assert.match(html, /<td class="litTranslation"><\/td>/);
+  assert.doesNotMatch(html, /Virgilio|Aeneis|IV 1–2|<b>Traducción<\/b>/,
+    'La quinta pregunta no revela los datos que debe identificar el alumno.');
   const sameOutput = ctx.M.Exam.html({ ...S, evolNormas: ['N07'],
     latinFilter: { desde: 20, hasta: 50, paridad: 'impares', activo: true } });
   assert.equal(sameOutput, html, 'Los filtros del sorteo nunca modifican el documento exportado');
@@ -137,7 +143,11 @@ module.exports = (async () => {
   const styles = await zip.file('word/styles.xml').async('string');
   const doc = await zip.file('word/document.xml').async('string');
   assert.match(styles, /w:sz w:val="21"/); assert.match(styles, /w:ascii="Palatino"/);
-  assert.match(doc, /w:after="0"/); assert.match(doc, /At regina gravi/); assert.match(doc, /Traducción/);
+  assert.match(doc, /w:after="0"/);
+  assert.match(doc, /At regina gravi/);
+  assert.match(doc, /Indique el autor y obra a que pertenece el siguiente texto/);
+  assert.doesNotMatch(doc, /Virgilio|Aeneis|IV 1–2/,
+    'El Word tampoco debe revelar autor, obra ni referencia de literatura.');
   // Espaciado de pregunta 4: compatibilidad de los valores anteriores y
   // conversión precisa a twips en Word (1 cm ~= 567 twips).
   assert.equal(ctx.M.Exam.q4Space({}), 2.6);

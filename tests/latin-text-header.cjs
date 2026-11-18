@@ -68,6 +68,11 @@ load('js/motor.js');
  const liter=E.literatureLatin(S);
  assert.match(liter,/prœlium/);
  assert.match(liter,/Cælum/);
+ assert.equal(E.literatureQuestion(S),
+   'Literatura. Indique el autor y obra a que pertenece el siguiente texto. Contextualice y comente el pasaje. (2p.)');
+ assert.equal(E.literatureQuestion({...S,documento:'repaso'}),
+   'Literatura. Indique el autor y obra a que pertenece el siguiente texto. Contextualice y comente el pasaje.');
+
  assert.equal(S.literatura.texto,'Poeta proelium narrat.\nCaelum videt.','Texto literario intacto');
  assert.equal(E.prepareLiterature?await E.prepareLiterature(S):null,false,'Evitar recalcular literatura no modificada');
  const runs=E.textRuns(S);
@@ -79,6 +84,13 @@ load('js/motor.js');
    assert.match(out,/1\.r trimestre/);
    assert.match(out,/Poeta <u>prœlium<\/u> et cælum videt/);
    assert.match(out,/Poeta prœlium narrat/);
+   assert.match(out,/<li class="literatureQuestion">Literatura\. Indique el autor y obra/);
+   assert.match(out,/<table class="litTable"><tbody><tr>/);
+   assert.match(out,/<td class="litLatin">Poeta prœlium narrat\.\nCælum videt\.<\/td>/);
+   assert.match(out,/<td class="litTranslation">El poeta narra la batalla\.<\/td>/);
+   assert.doesNotMatch(out,/Virgilio|Eneida|<b>Traducción<\/b>|<section class="literature">/,
+     'La ficha del alumno no debe identificar el fragmento ni la traducción.');
+
    assert.ok(!out.includes('<table class="hdr">'),'Cabecera HTML sin tabla');
    assert.match(out,/<div class="hdr"><div class="hdr-row">/);
  }
@@ -86,6 +98,10 @@ load('js/motor.js');
  assert.match(css,/\.page \.hdr \{[^}]*border: \.75pt solid #222/);
  assert.match(css,/\.page \.hdr-row \{[^}]*display: grid/);
  assert.ok(!/\.page \.hdr td/.test(css),'No existen bordes ni selectores de celdas');
+ assert.match(css,/\.page \.litTable \{[^}]*font-family: 'Palatino Linotype'/);
+ assert.match(css,/font-size: 10pt; font-weight: normal; line-height: 1\.25/);
+ assert.match(css,/\.page \.litTable \.litLatin \{ font-style: italic; \}/);
+
 
  const docx=await ctx.JSZip.loadAsync(await E.docx(S),{base64:true});
  const xml=await docx.file('word/document.xml').async('string');
@@ -94,6 +110,26 @@ load('js/motor.js');
  assert.match(xml,/prœlium/);
  assert.match(xml,/cælum/);
  assert.match(xml,/Cælum/);
+ assert.match(xml,/Indique el autor y obra a que pertenece el siguiente texto/);
+ assert.doesNotMatch(xml,/Virgilio|Eneida|<w:t xml:space="preserve">Traducción<\/w:t>/,
+   'La pregunta Word no revela la atribución ni rotula las dos columnas.');
+ const wordTables = [...xml.matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>/g)].map((m) => m[0]);
+ const literatureTable = wordTables.find((table) => table.includes('Poeta prœlium narrat'));
+ assert.ok(literatureTable, 'Literatura está dentro de una tabla real de Word');
+ assert.equal((literatureTable.match(/<w:tr>/g)||[]).length, 1, 'Una sola fila');
+ const literatureCells = [...literatureTable.matchAll(/<w:tc>[\s\S]*?<\/w:tc>/g)].map((m) => m[0]);
+ assert.equal(literatureCells.length, 2, 'Dos columnas');
+ assert.match(literatureTable,/<w:tblLayout w:type="fixed"\/>/);
+ for (const cell of literatureCells) {
+   assert.match(cell,/<w:rFonts w:ascii="Palatino Linotype"/);
+   assert.match(cell,/<w:sz w:val="20"\/>/, '10 pt expresados en medios puntos Word');
+ }
+ assert.match(literatureCells[0],/<w:i\/>/, 'Latín en cursiva');
+ assert.doesNotMatch(literatureCells[1],/<w:i\/>/, 'Traducción en redonda');
+ assert.match(literatureCells[0],/Cælum videt/);
+ assert.match(literatureCells[1],/El poeta narra la batalla/);
+ assert.ok(xml.indexOf('d.') < xml.indexOf('Indique el autor y obra'), 'Literatura después de la pregunta 4');
+
  const b=/<w:tblBorders>(.*?)<\/w:tblBorders>/.exec(xml);
  assert.ok(b,'Marco de Word');
  for(const side of ['top','bottom','left','right']) assert.match(b[1],new RegExp('<w:'+side+' w:val="single"'));
@@ -115,6 +151,11 @@ load('js/motor.js');
    const d=await z.file('word/document.xml').async('string');
    assert.ok(d.includes(title));assert.ok(d.includes(right));
    if(documento==='repaso')assert.ok(!E.questionList(sample).some(x=>/\(\dp/.test(x)));
+   if(documento==='repaso'){
+     assert.ok(!E.html(sample).includes('pasaje. (2p.)'));
+     assert.ok(!d.includes('pasaje. (2p.)'));
+   }
+
  }
  // Si el motor no estuviera disponible, las exportaciones siguen
  // funcionando con el texto original, sin perder contenido.

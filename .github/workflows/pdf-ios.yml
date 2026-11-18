@@ -20,5 +20,7 @@ jobs:
         run: node tests/ios-pdf-browser.cjs
       - name: Comprobar foco, ancho literario y vocabulario en WebKit/Chromium
         run: node tests/vocab-layout-browser.cjs
+      - name: Verificar Literatura como pregunta 5, tabla Palatino y diseño A4
+        run: node tests/literature-question-browser.cjs
       - name: Verificar temas en WebKit y Chromium con iPhone y escritorio
         run: node tests/themes-browser.cjs

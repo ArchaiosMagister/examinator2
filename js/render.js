@@ -121,6 +121,10 @@
     ? String(S.asig || 'Latín II') : E.trimesterLabel(S);
   E.questionList = (S) => E.questions.map((q) => S.documento === 'repaso' ? q.replace(/\s*\(\d+p\.\)/g, '') : q);
   E.literatureRef = (L) => [L.autor, L.obra, L.cita].filter(Boolean).join(', ');
+  E.hasLiterature = (S) => !!(S.literatura && S.literatura.texto);
+  const LITERATURE_QUESTION = 'Literatura. Indique el autor y obra a que pertenece el siguiente texto. Contextualice y comente el pasaje. (2p.)';
+  E.literatureQuestion = (S) => S.documento === 'repaso'
+    ? LITERATURE_QUESTION.replace(' (2p.)', '') : LITERATURE_QUESTION;
   E.fontStack = (f) => `'${f || 'Palatino Linotype'}', 'Palatino Linotype', 'Book Antiqua', Palatino, 'Gentium Book Plus', serif`;
 
   /* ---------- HTML ---------- */
@@ -137,10 +141,14 @@
 .page .ttl { margin: 9pt 0 0; padding: 5pt 0 6pt; border-top: .6pt solid #9a9a9a; border-bottom: .6pt solid #9a9a9a; text-align: center; }
 .page .ttl .t { font-weight: bold; }
 .page .txt { font-style: italic; text-align: justify; line-height: ${lh}; margin: 12pt 0 6pt; hyphens: manual; }
-.page .literature { margin-top: 12pt; }
-.page .litLatin, .page .litTranslation { white-space: pre-wrap; }
-.page .litLatin { font-style: italic; }
-.page .litTranslation { min-height: 3cm; }
+.page .litTable { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 6pt 0 0;
+  font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', 'Gentium Book Plus', serif;
+  font-size: 10pt; font-weight: normal; line-height: 1.25;
+  -webkit-text-size-adjust: none; text-size-adjust: none; }
+.page .litTable td { width: 50%; padding: 5pt 7pt; border: .5pt solid #555;
+  vertical-align: top; white-space: pre-wrap; overflow-wrap: break-word; font-weight: normal; }
+.page .litTable .litLatin { font-style: italic; }
+.page .litTable .litTranslation { font-style: normal; }
 .page .txt .nr { font-style: normal; }
 .page .txt u { text-decoration-thickness: .7pt; text-underline-offset: 2pt; }
 .page .voc { border: 1px solid #222; padding: 3pt 7pt 4pt; margin: 6pt 0 10pt; }
@@ -160,6 +168,12 @@
     if (refHtml[1]) ref += (ref ? ', ' : '') + refHtml[1];
     if (refHtml[2]) ref += (ref ? ' ' : '') + refHtml[2];
     const q4 = E.q4(S);
+    const litQuestionHtml = E.hasLiterature(S)
+      ? `<li class="literatureQuestion">${esc(E.literatureQuestion(S))}
+        <table class="litTable"><tbody><tr>
+          <td class="litLatin">${esc(E.literatureLatin(S))}</td>
+          <td class="litTranslation">${esc(S.literatura.traduccion || '')}</td>
+        </tr></tbody></table></li>` : '';
     return `<div class="page">
 <div class="hdr"><div class="hdr-row"><span>${esc(E.headerLeft(S))}</span><span>${esc(E.headerRight(S))}</span></div><div class="hdr-row"><span>Nombre y apellidos:</span><span>Fecha:</span></div></div>
 <div class="ttl">${S.titulo ? `<div class="t">${esc(S.titulo)}</div>` : ''}${ref ? `<div class="r">${ref}</div>` : ''}${!S.titulo && !ref ? '&nbsp;' : ''}</div>
@@ -167,8 +181,8 @@
 ${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ${esc(E.vocabGlosses(v))}${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
 <ol class="q">
 ${E.questionList(S).map((q, k) => `<li>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
+${litQuestionHtml}
 </ol>
-${S.literatura && S.literatura.texto ? `<section class="literature"><h3>Literatura${S.documento === 'repaso' ? '' : ' (2p.)'}</h3><p>${esc(E.literatureRef(S.literatura))}</p><div class="litLatin">${esc(E.literatureLatin(S))}</div><p><b>Traducción</b></p><div class="litTranslation">${esc(S.literatura.traduccion || '')}</div></section>` : ''}
 </div>`;
   };
   E.printDoc = function (S) {
@@ -235,13 +249,19 @@ ${E.pageCss(S)}
       const last = k === 3;
       body += para([{ t: 'abcd'[k] + '.' }, { t: '\t' }].concat(r), `<w:tabs><w:tab w:val="left" w:pos="1134"/></w:tabs><w:spacing w:before="0" w:after="${last ? 0 : hue}"/><w:ind w:left="1134" w:hanging="425"/><w:jc w:val="both"/>`);
     });
-    if (S.literatura && S.literatura.texto) {
-      const L = S.literatura;
-      body += para([{ t: 'Literatura' + (S.documento === 'repaso' ? '' : ' (2p.)'), b: true }], '<w:spacing w:before="240"/><w:keepNext/>');
-      body += para([{ t: E.literatureRef(L) }], sp0);
-      for (const line of E.literatureLatin(S).split('\n')) body += para([{ t: line, i: true }], sp0);
-      body += para([{ t: 'Traducción', b: true }], '<w:spacing w:before="120"/><w:keepNext/>');
-      for (const line of (L.traduccion || '').split('\n')) body += para([{ t: line }], L.traduccion ? sp0 : '<w:spacing w:after="1701"/>');
+    if (E.hasLiterature(S)) {
+      // Misma numeración, negrita y sangría que las cuatro preguntas anteriores.
+      body += para([{ t: '5.', b: true }, { t: '\t' },
+        { t: E.literatureQuestion(S), b: true }],
+        `<w:tabs><w:tab w:val="left" w:pos="709"/></w:tabs><w:spacing w:before="0" w:after="${Math.round(E.questionSpace(S) * 567)}"/><w:ind w:left="709" w:hanging="425"/><w:keepNext/>`);
+      // 10 pt (20 medios puntos) y Palatino Linotype solo en la tabla.
+      const litFont = '<w:rFonts w:ascii="Palatino Linotype" w:hAnsi="Palatino Linotype" w:cs="Palatino Linotype" w:eastAsia="Palatino Linotype"/><w:sz w:val="20"/><w:szCs w:val="20"/>';
+      const litParagraphs = (content, italic) => String(content || '').split(/\r?\n/)
+        .map((line) => para([{ t: line, i: italic }],
+          '<w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>', litFont)).join('');
+      const half = Math.round(W / 2), rest = W - half;
+      const litCell = (content, width) => `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${content}</w:tc>`;
+      body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders>${bd(4)}<w:insideV w:val="single" w:sz="4" w:color="222222"/></w:tblBorders><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="110" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="110" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${half}"/><w:gridCol w:w="${rest}"/></w:tblGrid><w:tr>${litCell(litParagraphs(E.literatureLatin(S), true), half)}${litCell(litParagraphs(S.literatura.traduccion || '', false), rest)}</w:tr></w:tbl>`;
     }
     body = body.replace(/<w:r><w:t xml:space="preserve">\t<\/w:t><\/w:r>/g, '<w:r><w:tab/></w:r>').replace(/<w:r><w:rPr>(<w:[bi]\/>)*<\/w:rPr><w:t xml:space="preserve">\t<\/w:t><\/w:r>/g, '<w:r><w:tab/></w:r>');
     const sect = `<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1247" w:bottom="1134" w:left="1247" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>`;
