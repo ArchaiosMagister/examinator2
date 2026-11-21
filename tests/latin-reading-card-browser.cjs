@@ -77,7 +77,28 @@ async function openAt(page, selector, needle, mobile) {
   const { x, y } = await position(page, selector, needle);
   if (mobile) await page.touchscreen.tap(x, y);
   else await page.mouse.move(x, y);
-  await page.locator('.ex-latin-card .ex-latin-lemma-title').first().waitFor();
+  try {
+    await page.locator('.ex-latin-card .ex-latin-lemma-title').first()
+      .waitFor({ timeout: 6500 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(({ x, y, selector }) => {
+      const element = document.elementFromPoint(x, y);
+      const sheet = document.getElementById('sheet');
+      const paragraph = document.querySelector(selector);
+      const selection = window.getSelection();
+      const rect = (r) => r && ({ x:r.x, y:r.y, width:r.width, height:r.height });
+      return { x, y, width:innerWidth, height:innerHeight, dpr:devicePixelRatio,
+        element:element?.tagName + '.' + (element?.className || ''),
+        insideSheet:sheet?.contains(element), insideParagraph:paragraph?.contains(element),
+        sheet:rect(sheet?.getBoundingClientRect()),
+        paragraph:rect(paragraph?.getBoundingClientRect()),
+        zoom:getComputedStyle(sheet).zoom,
+        selected:selection?.toString(), collapsed:selection?.isCollapsed,
+        card:document.querySelector('.ex-latin-card')?.innerText };
+    }, { x, y, selector });
+    throw new Error('No se abrió la tarjeta de ' + needle + ': ' +
+      JSON.stringify(diagnostic) + '\\n' + error.message);
+  }
   return page.locator('.ex-latin-card');
 }
 (async () => {
