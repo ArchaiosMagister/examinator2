@@ -72,6 +72,8 @@ async function prepare(page, mobile) {
 }
 
 async function openAt(page, selector, needle, mobile) {
+  await page.locator(selector).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
   const { x, y } = await position(page, selector, needle);
   if (mobile) await page.touchscreen.tap(x, y);
   else await page.mouse.move(x, y);
