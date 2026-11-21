@@ -22,5 +22,7 @@ jobs:
         run: node tests/vocab-layout-browser.cjs
       - name: Verificar Literatura como pregunta 5, tabla Palatino y diseño A4
         run: node tests/literature-question-browser.cjs
+      - name: Verificar tarjetas Collatinus en vista previa, ratón, iPad y sin conexión
+        run: node tests/latin-reading-card-browser.cjs
       - name: Verificar temas en WebKit y Chromium con iPhone y escritorio
         run: node tests/themes-browser.cjs
