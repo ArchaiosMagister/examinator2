@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v1.1.3-literature-gap-20261118';
+const VERSION = 'examinator2-v1.1.4-latin-reading-cards-20261121';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -35,6 +35,7 @@ const PRECACHE = [
   "./js/render.js",
   "./js/lexico-filtros.js",
   "./js/propose.js",
+  "./js/latin-reading-card.js",
   "./js/exam.js",
   "./js/library.js",
   "./js/mobile.js",
