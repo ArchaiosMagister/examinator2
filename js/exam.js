@@ -30,6 +30,7 @@
     let st = $('#pageCss'); if (!st) { st = el('style', { id: 'pageCss' }); document.head.appendChild(st); }
     st.textContent = M.Exam.pageCss(M.S);
     sh.innerHTML = M.Exam.html(M.S);
+    M.LatinReader?.reset(); // Cerrar tarjetas asociadas a palabras de la hoja anterior.
     fitSheet();
     const exam = M.S;
     M.Exam.prepareLiterature(exam).then((changed) => {
