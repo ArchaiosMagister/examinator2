@@ -33,7 +33,7 @@ const version = fs.readFileSync('VERSION', 'utf8').trim();
 assert.ok(sw.includes('examinator2-v' + version + '-'),
   'La caché offline corresponde a la versión del repositorio');
 const mobileCss=css.slice(css.indexOf('/* Pantallas estrechas:'));
-assert.match(mobileCss,/@media \(max-width: 760px\), \(max-width: 950px\) and \(max-height: 550px\)/);
+assert.match(mobileCss,/@media \(max-width: 1100px\)/);
 assert.match(mobileCss,/grid-template-rows: var\(--top-band-height\) 48px var\(--mobile-tabs-height\) minmax\(0,1fr\)/);
 assert.match(mobileCss,/\.header-actions \{ display: none; \}/);
 assert.match(mobileCss,/header\.menu-open \.header-actions \{/);
@@ -46,6 +46,9 @@ assert.match(mobileCss,/\.rtext \{[^}]*overflow-scrolling: touch/);
 assert.match(mobileCss,/\.vrow \{ grid-template-columns: 24px minmax\(0,1fr\)/);
 assert.match(css,/main \{ display: grid; grid-template-columns: minmax\(470px, 600px\) 1fr/,'Conservar escritorio');
 assert.match(exam,/M\.fitSheet = fitSheet;/);
+assert.match(exam,/window\.matchMedia\('\(max-width: 1100px\)'\)\.matches/);
+assert.match(exam,/sh\.style\.transform = 'scale\('/);
+assert.match(html,/id="sheetSizer"/);
 assert.match(exam,/if \(!pv \|\| !sh \|\| !pv\.clientWidth\) return;/);
 assert.match(exam,/Math\.max\(0\.2, avail \/ w\)/);
 assert.match(library,/box\.dataset\.mobilePane = 'catalog';/);

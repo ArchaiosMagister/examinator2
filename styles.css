@@ -228,12 +228,12 @@ main { display: grid; grid-template-columns: minmax(470px, 600px) 1fr; min-heigh
 .rtext .rx { -webkit-user-select: text; user-select: text; }
 .rtext ::selection { background: var(--selection-bg); }
 
-/* Pantallas estrechas: iPhone vertical y horizontal.
+/* Pantallas estrechas: iPhone e iPad.
  * En escritorio e iPad ancho conservamos la rejilla tradicional.
  */
 .mobile-menu-toggle, .mobile-lib-shortcut, .mobile-views, .library-switch { display: none; }
 .header-actions { display: contents; }
-@media (max-width: 760px), (max-width: 950px) and (max-height: 550px) {
+@media (max-width: 1100px) {
   :root { --mobile-tabs-height: 44px; }
   html, body { width: 100%; min-width: 0; }
   body {

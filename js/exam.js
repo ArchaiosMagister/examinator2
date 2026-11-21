@@ -43,7 +43,7 @@
     const sizer = $('#sheetSizer');
     if (!sizer) return;
     const mobile = window.matchMedia &&
-      window.matchMedia('(max-width: 760px), (max-width: 950px) and (max-height: 550px)').matches;
+      window.matchMedia('(max-width: 1100px)').matches;
     const avail = Math.max(1, pv.clientWidth - (mobile ? 20 : 48));
     // WebKit táctil no devuelve coordenadas reales con CSS zoom sobre la hoja.
     // transform + envoltorio mantiene la hoja visible y sus rangos táctiles

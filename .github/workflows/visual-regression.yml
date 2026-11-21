@@ -1,0 +1,38 @@
+name: Examinator2 — regresión visual
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.56.1-noble
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Usar Chromium y WebKit preinstalados
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          node -e "const p=require('playwright'); console.log('Chromium:',p.chromium.executablePath(),'WebKit:',p.webkit.executablePath())"
+      - name: Verificar maquetación iPhone, iPad, escritorio y biblioteca
+        run: node tests/visual/browser.cjs
+      - name: Instalar renderizadores de documentos
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends libreoffice-writer poppler-utils python3-pil
+      - name: Comparar visualmente PDF y Word
+        run: python3 tests/visual/documents.py
+      - name: Conservar capturas y documentos para diagnóstico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditoria-visual
+          path: artifacts/visual/
+          if-no-files-found: warn
+          retention-days: 14
