@@ -73,7 +73,12 @@
     if (location.protocol === 'file:') { const r = new FileReader(); r.onload = () => go(r.result); r.readAsDataURL(blob); }
     else go(URL.createObjectURL(blob));
   }
-  const cfgGet = () => { try { return JSON.parse(localStorage.getItem('examinator.config') || '{}'); } catch (e) { return {}; } };
+  const cfgGet = () => {
+    try {
+      const value = JSON.parse(localStorage.getItem('examinator.config') || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (_) { return {}; }
+  };
   window.api = {
     web: true,
     call: async (method, args) => {
@@ -85,13 +90,33 @@
     getConfig: async () => cfgGet(),
     setConfig: async (patch) => { const c = Object.assign(cfgGet(), patch); try { localStorage.setItem('examinator.config', JSON.stringify(c)); } catch (e) { /* */ } return c; },
     saveFile: async ({ defaultName, data, encoding }) => { download(defaultName, data, encoding, /\.docx$/.test(defaultName) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : null); return null; },
-    openFile: () => new Promise((resolve) => {
+    openFile: () => new Promise((resolve, reject) => {
       const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.examen,.json';
-      inp.onchange = () => { const f = inp.files[0]; if (!f) return resolve(null); const r = new FileReader(); r.onload = () => resolve({ path: f.name, text: r.result }); r.readAsText(f); };
+      let finished = false;
+      const finish = (result, error) => {
+        if (finished) return;
+        finished = true;
+        if (error) reject(error); else resolve(result);
+      };
+      inp.addEventListener('cancel', () => finish(null), { once: true });
+      inp.onchange = () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return finish(null);
+        const r = new FileReader();
+        r.onload = () => finish({ path: f.name, text: r.result });
+        r.onerror = () => finish(null, new Error('No se pudo leer el examen seleccionado.'));
+        r.readAsText(f);
+      };
       inp.click();
     }),
-    makePdf: async ({ html }) => {
-      // se abre el diálogo de impresión del navegador: «Guardar como PDF»
+    makePdf: async ({ html, defaultName }) => {
+      // En una PWA instalada en iPad/iPhone, Safari puede ignorar print().
+      // Preparar un PDF real y ofrecer compartirlo/descargarlo expresamente.
+      if (window.EXPdf && window.EXPdf.isIOS()) {
+        const blob = await window.EXPdf.generate(html);
+        return window.EXPdf.deliver(blob, defaultName);
+      }
+      // Mantener el flujo de impresión original en escritorio y Android.
       const fr = document.createElement('iframe');
       fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
       document.body.appendChild(fr);

@@ -8,7 +8,22 @@
 
   const lowerFirst = (s) => s ? s[0].toLowerCase() + s.slice(1) : s;
   const groupToks = (S, t) => (t.group ? t.group.map((i) => S.tokens[i]) : [t]);
-  P.formOf = (S, t) => groupToks(S, t).map((x) => x.proper ? x.w : lowerFirst(x.w)).join(' ');
+  P.formOf = (S, t) => groupToks(S, t).map((x) => {
+    // La lematización ya comprobó si ae/oe son diptongos. No convertir hiatos.
+    const word = x.lig || x.w;
+    return x.proper ? word : lowerFirst(word);
+  }).join(' ');
+  // Exámenes anteriores: corregir solo propuestas que aún coincidan con
+  // la forma elegida del texto, sin reescribir aportaciones manuales.
+  P.prevDisplay = (S, item) => {
+    const value = String(item && item.txt || '');
+    if (!item || !Number.isInteger(item.i) || !item.lplain) return value;
+    const token = (S.tokens || [])[item.i];
+    if (!token) return value;
+    const unligated = groupToks(S, token).map((x) =>
+      x.proper ? x.w : lowerFirst(x.w)).join(' ');
+    return M.fold(unligated) === M.fold(value) ? P.formOf(S, token) : value;
+  };
 
   /* ---------- análisis morfológico: palabras subrayadas ---------- */
   function candidates(S, cat, used) {
@@ -103,11 +118,41 @@
     return false;
   };
 
+  // El banco fonético acredita estas ligaduras; no convertir a ciegas
+  // cualquier secuencia ae/oe (p. ej., los hiatos de otras formas).
+  const writtenEtima = new Map();
+  const ambiguousEtima = new Set();
+  const orthKey = (word) => M.fold(word).replace(/æ/g, 'ae').replace(/œ/g, 'oe');
+  for (const item of (((window.EXACADEMIC_SOURCE || {}).fonetica || {}).items || [])) {
+    const word = String(item.latin || '');
+    if (!/[æœ]/i.test(word)) continue;
+    const key = orthKey(word), existing = writtenEtima.get(key);
+    if (existing && existing !== word) ambiguousEtima.add(key);
+    else writtenEtima.set(key, word);
+  }
+  P.evolDisplay = (word) => {
+    const input = String(word || ''), key = orthKey(input);
+    if (ambiguousEtima.has(key)) return input;
+    const canonical = writtenEtima.get(key);
+    if (!canonical) return input;
+    const initiallyUpper = input[0] && input[0] !== input[0].toLowerCase();
+    return initiallyUpper ? canonical[0].toUpperCase() + canonical.slice(1) : canonical;
+  };
+
   /* ---------- prefijos y latinismos ---------- */
   const PROPER = /^(Cisjordania|Anticristo|Contrarreforma)$/i;
   const prefDisplay = (w) => (PROPER.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w.toLowerCase());
   P.prefDisplay = prefDisplay;
-  const latDisplay = (t) => String(t.termino || t).split(/\s*\/\s*|\s+[ou]\s+/)[0].replace(/\s*\(.*?\)\s*/g, ' ').trim().toLowerCase();
+  const latDisplay = (t) => {
+    const source = String(t && (t.termino || t) || '');
+    const value = source.split(/\s*\/\s*|\s+[ou]\s+/)[0]
+      .replace(/\s*\(.*?\)\s*/g, ' ').trim().toLowerCase();
+    // El gentilicio Graecas conserva la mayúscula también en .examen antiguos.
+    // æquus sí contiene diptongo; otras secuencias ae/oe no se sustituyen.
+    if (value === 'ad kalendas graecas') return 'ad kalendas Graecas';
+    if (value === 'ex aequo' || value === 'ex æquo') return 'ex æquo';
+    return value;
+  };
   P.latDisplay = latDisplay;
   function pickN(list, n, current, k) {
     const used = new Set((current || []).filter((x, j) => j !== k).map(M.fold));

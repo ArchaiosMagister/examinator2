@@ -42,7 +42,8 @@ for(const id of topButtonIds) {
 }
 assert.equal((html.match(/<header>/g)||[]).length, 1, 'Cabecera sin duplicar');
 assert.equal((html.match(/<\/header>/g)||[]).length, 1, 'Cabecera intacta');
-assert.match(sw, /examinator2-v14-visual-ipad-safari-20261118/);
+const version = fs.readFileSync('VERSION', 'utf8').trim();
+assert.ok(sw.includes('examinator2-v' + version + '-'), 'La caché se actualiza con la versión');
 assert.match(sw, /"\.\/styles\.css"/);
 assert.equal(48 + pixels, 98, 'La biblioteca empieza bajo la cabecera de 48px y la banda de 50px');
 console.log('OK: Examinator blanco centrado en banda verde de ' + pixels + ' px, tipografía igual, biblioteca alineada y PWA versionada.');

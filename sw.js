@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v14-visual-ipad-safari-20261118';
+const VERSION = 'examinator2-v1.1.5-visual-responsive-20261121';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
@@ -10,6 +10,7 @@ const PRECACHE = [
   "./icon-192.png",
   "./icono.svg",
   "./styles.css",
+  "./js/theme.js",
   "./fonts.css",
   "./fonts/gentium-book-plus-latin-400-italic.woff2",
   "./fonts/gentium-book-plus-latin-400-normal.woff2",
@@ -20,6 +21,8 @@ const PRECACHE = [
   "./fonts/gentium-book-plus-latin-ext-700-italic.woff2",
   "./fonts/gentium-book-plus-latin-ext-700-normal.woff2",
   "./lib/jszip.min.js",
+  "./lib/html2pdf.bundle.min.js",
+  "./js/pdf-export.js",
   "./js/datos.js",
   "./js/bancos-datos.js",
   "./js/lexico-bancos-datos.js",
@@ -32,6 +35,7 @@ const PRECACHE = [
   "./js/render.js",
   "./js/lexico-filtros.js",
   "./js/propose.js",
+  "./js/latin-reading-card.js",
   "./js/exam.js",
   "./js/library.js",
   "./js/mobile.js",

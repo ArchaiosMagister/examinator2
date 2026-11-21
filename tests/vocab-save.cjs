@@ -110,7 +110,9 @@ const setup = () => {
   assert.match(exam,/data-act="vreset"/,'Se conserva Restablecer');
   assert.match(exam,/if \(act === 'vsave'\)/);
   assert.match(exam,/saveButton\.textContent = 'Guardar'/,'Editar vuelve a marcar pendiente de guardar');
-  assert.match(styles,/\.vrow\s*\{[^}]*grid-template-columns:[^}]*auto 24px/);
+  assert.match(styles,/\.vrow\s*\{[^}]*grid-template-columns:[^}]*90px 24px/);
+  assert.match(styles,/\.vrow \.vsave\s*\{[^}]*width: 90px;[^}]*min-width: 90px;[^}]*max-width: 90px/);
+  assert.match(styles,/\.vrow\s*\{[^}]*grid-template-columns:[^}]*90px 25px/,'Ancho fijo también en iPhone');
   assert.match(styles,/\.vrow \.vsave\s*\{/);
   assert.match(styles,/\.vrow \.vsave\.saved\s*\{/);
   console.log('OK: guardar significado de Cæsar, reabrir examen, preferencias existentes, edición, errores de cuota y botón visible.');

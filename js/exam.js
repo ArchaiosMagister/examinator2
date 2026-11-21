@@ -30,6 +30,7 @@
     let st = $('#pageCss'); if (!st) { st = el('style', { id: 'pageCss' }); document.head.appendChild(st); }
     st.textContent = M.Exam.pageCss(M.S);
     sh.innerHTML = M.Exam.html(M.S);
+    M.LatinReader?.reset(); // Cerrar tarjetas asociadas a palabras de la hoja anterior.
     fitSheet();
     const exam = M.S;
     M.Exam.prepareLiterature(exam).then((changed) => {
@@ -37,13 +38,16 @@
     }).catch(() => { /* Si Collatinus no responde, conservar texto sin alterar. */ });
   }, 80);
   function fitSheet() {
-    const pv = $('#preview'), sh = $('#sheet'), sizer = $('#sheetSizer');
-    if (!pv || !sh || !sizer || !pv.clientWidth) return;
-    const mobile = window.matchMedia && window.matchMedia('(max-width: 1100px)').matches;
+    const pv = $('#preview'), sh = $('#sheet');
+    if (!pv || !sh || !pv.clientWidth) return;
+    const sizer = $('#sheetSizer');
+    if (!sizer) return;
+    const mobile = window.matchMedia &&
+      window.matchMedia('(max-width: 1100px)').matches;
     const avail = Math.max(1, pv.clientWidth - (mobile ? 20 : 48));
-    // CSS zoom no reduce correctamente el rectángulo visual en WebKit.
-    // transform conserva la misma escala en Safari, Chromium e impresión,
-    // y el envoltorio reserva el tamaño real para el desplazamiento vertical.
+    // WebKit táctil no devuelve coordenadas reales con CSS zoom sobre la hoja.
+    // transform + envoltorio mantiene la hoja visible y sus rangos táctiles
+    // alineados, sin cambiar el HTML exportable ni sus márgenes A4.
     sh.style.zoom = '1';
     sh.style.transform = 'none';
     const w = sh.offsetWidth, h = sh.offsetHeight;
@@ -64,38 +68,46 @@
     const text = S.texto || '';
     if (!force && text === S.textAnalyzed) return;
     const my = ++anaSeq;
+    // Un resultado tardío no debe aplicarse a otro examen ni a otro texto.
+    const current = () => my === anaSeq && M.S === S && S.texto === text;
     $('#busy').classList.remove('hidden');
     try {
       const toks = text.trim() ? await M.call('analyze', { text }) : [];
-      if (my !== anaSeq) return;
+      if (!current()) return;
       S.tokens = toks; S.textAnalyzed = text;
-      await rebuildVocab(true);
+      await rebuildVocab(true, S);
+      if (!current()) return;
       P.underline(S);
       P.preverbs(S);
-    } catch (e) { M.toast('No se pudo analizar el texto: ' + e.message, 6000); }
-    finally { if (my === anaSeq) $('#busy').classList.add('hidden'); }
+    } catch (e) {
+      if (current()) M.toast('No se pudo analizar el texto: ' + e.message, 6000);
+    } finally {
+      if (current()) $('#busy').classList.add('hidden');
+    }
+    if (!current()) return;
     renderWords(); renderVocab(); renderSubr(); renderQ4(); changed();
   };
   const analyzeSoon = M.debounce(() => M.analyzeNow(), 700);
 
   /* ---------- vocabulario ---------- */
-  function textLids() {
+  function textLids(S = M.S) {
     const seen = new Set(); const out = [];
-    for (const t of M.S.tokens || []) if (t.sel && !seen.has(t.sel.lid)) { seen.add(t.sel.lid); out.push(t.sel.lid); }
+    for (const t of S.tokens || []) if (t.sel && !seen.has(t.sel.lid)) { seen.add(t.sel.lid); out.push(t.sel.lid); }
     return out;
   }
-  async function rebuildVocab(fromText) {
-    const S = M.S;
-    const lids = textLids();
+  async function rebuildVocab(fromText, S = M.S) {
+    const tokens = S.tokens;
+    const lids = textLids(S);
     const old = new Map((S.vocabItems || []).filter((v) => v.lid).map((v) => [v.lid, v]));
     const need = lids.filter((l) => !old.has(l));
     const fresh = need.length ? await M.vocabEntries({ lids: need, mode: S.qty }) : [];
+    if (M.S !== S || S.tokens !== tokens) return;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     const items = [];
     for (const lid of lids) {
       if (old.has(lid)) { items.push(old.get(lid)); continue; }
       const e = fm.get(lid); if (!e) continue;
-      items.push({ lid, head: e.head, trad: e.trad, note: e.note, proper: e.proper, preferred: !!e.preferred, on: S.vocMode === 'todo' || !!e.proper });
+      items.push({ lid, head: e.head, trad: e.trad, note: e.note, proper: e.proper, preferred: !!e.preferred, glosasSeparadas: e.glosasSeparadas === true, on: S.vocMode === 'todo' || !!e.proper });
     }
     for (const v of S.vocabItems || []) if (v.manual) items.push(v);
     const unknown = new Set();
@@ -111,7 +123,8 @@
   }
   M.refreshVocab = async function () {
     const S = M.S;
-    const fresh = await M.vocabEntries({ lids: textLids(), mode: S.qty });
+    const fresh = await M.vocabEntries({ lids: textLids(S), mode: S.qty });
+    if (M.S !== S) return;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     for (const v of S.vocabItems || []) if (fm.has(v.lid)) {
       const e = fm.get(v.lid);
@@ -119,9 +132,11 @@
       if (!v.eTrad) v.trad = e.trad;
       if (!v.eNote) v.note = e.note;
       v.preferred = !!e.preferred;
+      if (!v.glosasSeparadas && e.glosasSeparadas) v.glosasSeparadas = true;
     }
     S.vocabItems = S.vocabItems.filter((v) => !v.customWord);
-    await rebuildVocab(false);
+    await rebuildVocab(false, S);
+    if (M.S !== S) return;
     renderVocab(); renderWords(); changed();
   };
   async function requantify() {
@@ -129,6 +144,7 @@
     const lids = S.vocabItems.filter((v) => v.lid && !v.eHead).map((v) => v.lid);
     if (!lids.length) return;
     const fresh = await M.vocabEntries({ lids, mode: S.qty });
+    if (M.S !== S) return;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     for (const v of S.vocabItems) if (v.lid && !v.eHead && fm.has(v.lid)) v.head = fm.get(v.lid).head;
   }
@@ -137,11 +153,14 @@
   async function setLemma(t, lid) {
     const cd = t.cands.find((c) => c.lid === lid); if (!cd) return;
     const morpho = cd.morphos[0] || '';
+    const S = M.S;
     const info = await M.call('tokenInfo', { lid, morpho, word: t.w });
+    if (M.S !== S || !S.tokens.includes(t)) return;
     t.sel = { lid, morpho }; t.lemma = cd.lemma; t.proper = cd.proper;
     if (info) Object.assign(t, info);
     // participio + sum
-    await rebuildVocab(false);
+    await rebuildVocab(false, S);
+    if (M.S !== S) return;
     renderWords(); renderVocab(); renderSubr(); changed();
   }
 
@@ -203,7 +222,7 @@
         <h3>Texto de literatura</h3>
         <button class="tbtn" data-act="literatura">Elegir Miles Gloriosus, Eneida IV o Heroida I…</button>
         <p class="small muted">Selecciona el fragmento latino. Después puedes pegar su traducción.</p>
-        <div class="grid3">${[['autor', 'Autor'], ['obra', 'Obra'], ['cita', 'Pasaje']].map(([k, label]) => `<label>${label}<input data-lit="${k}"></label>`).join('')}</div>
+        <div class="grid3 litMeta">${[['autor', 'Autor'], ['obra', 'Obra'], ['cita', 'Pasaje']].map(([k, label]) => `<label>${label}<input data-lit="${k}"></label>`).join('')}</div>
         <label class="full">Texto latino<textarea data-lit="texto" rows="5" spellcheck="false"></textarea></label>
         <label class="full">Traducción<textarea data-lit="traduccion" rows="5" placeholder="Pega aquí la traducción cuando quieras incorporarla."></textarea></label>
       </div>`;
@@ -287,7 +306,19 @@
       if (!r.toks.length) M.toast('No hay ningún ' + CATN[cat] + ' en el texto.');
       renderSubr(); renderWords(); changed();
     }
-    if (act === 'vadd') { S.vocabItems.push({ manual: true, head: '', trad: '', note: '', on: true }); renderVocab(); changed(); const ins = $$('.vlist .vh', $('#editor')); if (ins.length) ins[ins.length - 1].focus(); }
+    if (act === 'vadd') {
+      const k = S.vocabItems.push({ manual: true, head: '', trad: '', note: '', on: true }) - 1;
+      renderVocab(); changed();
+      // La lista está ordenada alfabéticamente: la nueva entrada vacía
+      // NO coincide necesariamente con la última fila visible.
+      const input = $('.vlist .vrow[data-k="' + k + '"] .vh', $('#editor'));
+      if (input) {
+        input.closest('.vrow').classList.add('new-manual');
+        input.addEventListener('input', () => input.closest('.vrow').classList.remove('new-manual'), { once: true });
+        input.focus();
+        input.scrollIntoView({ block: 'nearest' });
+      }
+    }
     if (act === 'vall' || act === 'vnone') { for (const v of S.vocabItems) v.on = act === 'vall'; renderVocab(); renderWords(); changed(); }
     if (act === 'vdel') { const k = +b.dataset.k; S.vocabItems.splice(k, 1); renderVocab(); changed(); }
     if (act === 'vsave') {
@@ -491,16 +522,16 @@
       : 'sin filtro';
     box.innerHTML = `
       <div class="q4b"><div class="q4t">a. Modificación preverbial <span class="muted small">(${nPrev ? nPrev + (nPrev === 1 ? ' verbo de la lista en el texto' : ' verbos de la lista en el texto') : 'ningún verbo de la lista en el texto todavía'})</span></div>
-        ${[0, 1].map((k) => `<div class="qrow"><input type="text" class="it" data-q="prev" data-k="${k}" value="${esc((S.prev[k] || {}).txt || '')}"><select data-q="prevn" data-k="${k}"><option value="3">3 derivados</option><option value="2">2 derivados</option></select><button class="tbtn sm" data-act="prevOne" data-k="${k}">Otro</button></div>`).join('')}
+        ${[0, 1].map((k) => `<div class="qrow"><input type="text" class="it" data-q="prev" data-k="${k}" value="${esc(P.prevDisplay(S, S.prev[k] || {}))}"><select data-q="prevn" data-k="${k}"><option value="3">3 derivados</option><option value="2">2 derivados</option></select><button class="tbtn sm" data-act="prevOne" data-k="${k}">Otro</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">b. Evolución fonética <span class="muted small">(cuatro fenómenos distintos)</span><button class="tbtn sm" data-act="evolFilter">Seleccionar normas</button><span class="muted small">${evolStatus}</span></div>
-        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="evol" data-k="${k}" value="${esc((S.evol[k] || {}).w || '')}"><span class="fen small muted">${esc((S.evol[k] || {}).g || '')}</span><button class="tbtn sm" data-act="evolOne" data-k="${k}">Otra</button></div>`).join('')}
+        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="evol" data-k="${k}" value="${esc(P.evolDisplay((S.evol[k] || {}).w || ''))}"><span class="fen small muted">${esc((S.evol[k] || {}).g || '')}</span><button class="tbtn sm" data-act="evolOne" data-k="${k}">Otra</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">c. Prefijos</div>
         ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="pref" data-k="${k}" value="${esc(S.pref[k] || '')}"><button class="tbtn sm" data-act="prefOne" data-k="${k}">Otra</button></div>`).join('')}
       </div>
       <div class="q4b"><div class="q4t">d. Latinismos <button class="tbtn sm" data-act="latinFilter">Intervalo y paridad</button><span class="muted small">${latinStatus}</span></div>
-        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="latin" data-k="${k}" value="${esc(S.latin[k] || '')}"><button class="tbtn sm" data-act="latOne" data-k="${k}">Otro</button></div>`).join('')}
+        ${[0, 1, 2, 3].map((k) => `<div class="qrow"><input type="text" class="it" data-q="latin" data-k="${k}" value="${esc(P.latDisplay(S.latin[k] || ''))}"><button class="tbtn sm" data-act="latOne" data-k="${k}">Otro</button></div>`).join('')}
       </div>`;
     $$('select[data-q=prevn]', box).forEach((s) => { s.value = String((S.prev[+s.dataset.k] || {}).n || (s.dataset.k === '0' ? 3 : 2)); });
     box.oninput = (e) => {
@@ -538,8 +569,10 @@
       <input type="text" class="vn" value="${esc(v.note)}" placeholder="aclaración (opcional)">
       <button class="tbtn sm vsave ${v.preferred && !v.eHead && !v.eTrad && !v.eNote ? 'saved' : ''}" data-act="vsave" data-k="${k}" title="Guardar corrección para próximos exámenes en este dispositivo" aria-label="Guardar corrección de ${esc(v.head)}">${v.preferred && !v.eHead && !v.eTrad && !v.eNote ? '✓ Guardada' : 'Guardar'}</button>
       ${v.manual ? `<button class="xbtn" data-act="vdel" data-k="${k}" title="Quitar">×</button>` : `<button class="xbtn" data-act="vreset" data-k="${k}" title="Restablecer la entrada en este examen">↺</button>`}
+      ${(v.manual || v.glosasSeparadas) ? `<label class="vsplitLabel" title="Entrecerrar cada glosa individual: separa traducciones mediante |"><input type="checkbox" class="vsplit" ${v.glosasSeparadas ? 'checked' : ''}> Glosas separadas <span class="vsplitHint">(escribe grande | camino)</span></label>` : ''}
     </div>`).join('');
     box.oninput = (e) => {
+      if (!e.target.matches('.vh, .vt, .vn')) return;
       const row = e.target.closest('.vrow'); if (!row) return;
       const v = S.vocabItems[+row.dataset.k];
       if (e.target.classList.contains('vh')) { v.head = e.target.value; v.eHead = true; }
@@ -550,6 +583,17 @@
       changed();
     };
     box.onchange = (e) => {
+      if (e.target.classList.contains('vsplit')) {
+        const row = e.target.closest('.vrow');
+        if (!row) return;
+        const v = S.vocabItems[+row.dataset.k];
+        if (!v) return;
+        v.glosasSeparadas = e.target.checked;
+        const saveButton = row.querySelector('.vsave');
+        if (saveButton) { saveButton.textContent = 'Guardar'; saveButton.classList.remove('saved'); }
+        changed();
+        return;
+      }
       if (!e.target.classList.contains('von')) return;
       const row = e.target.closest('.vrow'); const v = S.vocabItems[+row.dataset.k];
       v.on = e.target.checked; row.classList.toggle('off', !v.on);
@@ -560,6 +604,8 @@
   }
 
   M.loadExam = function (S) {
+    ++anaSeq; // invalidar respuestas pendientes del examen anterior
+    $('#busy').classList.add('hidden');
     M.S = S;
     M.renderEditor(); M.preview();
     if (S.texto && S.texto !== S.textAnalyzed) M.analyzeNow();

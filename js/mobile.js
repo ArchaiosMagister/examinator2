@@ -1,4 +1,4 @@
-/* Navegación compacta de iPhone: sin duplicar ni reemplazar acciones.
+/* Navegación compacta de iPhone e iPad: sin duplicar ni reemplazar acciones.
  * Las acciones existentes se alojan en el menú desplegable; el editor
  * y la vista previa comparten el ancho disponible cuando es estrecho.
  */

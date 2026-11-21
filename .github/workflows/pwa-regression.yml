@@ -20,12 +20,20 @@ jobs:
           node --check scripts/check-deployed-assets.cjs
       - name: Regresión del motor, documentos y biblioteca
         run: node tests/regression.cjs
+      - name: "Estabilidad 1.0: análisis concurrente, archivos y configuración"
+        run: node tests/stability-1.0.cjs
+      - name: "Temas claro, oscuro y OLED: preferencias y documento intacto"
+        run: node tests/theme-modes.cjs
       - name: Diptongos æ/œ y excepciones filológicas
         run: node tests/vocab-ligatures.cjs
+      - name: Glosas de sintagmas y diptongos de pregunta 4
+        run: node tests/vocab-gloss-ligatures.cjs
       - name: Ligaduras de texto, literatura y cabeceras de examen
         run: node tests/latin-text-header.cjs
       - name: Correcciones docentes persistentes del vocabulario
         run: node tests/vocab-save.cjs
+      - name: PDF directo en iPad y botones de vocabulario
+        run: node tests/pdf-ios.cjs
       - name: PWA y bancos académicos sin conexión
         run: node tests/pwa-banks.cjs
       - name: Filtros docentes y listas históricas
