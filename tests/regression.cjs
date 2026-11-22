@@ -148,6 +148,44 @@ module.exports = (async () => {
   assert.match(doc, /Indique el autor y obra a que pertenece el siguiente texto/);
   assert.doesNotMatch(doc, /Virgilio|Aeneis|IV 1–2/,
     'El Word tampoco debe revelar autor, obra ni referencia de literatura.');
+  // Interlineado latino editable en puntos, consistente en CSS (vista/PDF) y DOCX.
+  assert.equal(ctx.M.Exam.exactLatinLineSpacingPt({ interlineadoPuntos: 33.5 }), 33.5);
+  assert.equal(ctx.M.Exam.exactLatinLineSpacingPt({ interlineadoPuntos: 'x' }), null);
+  assert.equal(ctx.M.Exam.exactLatinLineSpacingPt({ interlineadoPuntos: 150 }), null);
+  assert.equal(ctx.M.Exam.latinLineSpacingPt({ tamano: 11, interlineado: 3 }), 33);
+  const withVocab = { ...S, vocabItems: [{ head: 'Gallia, -ae', trad: 'Galia', on: true }] };
+  for (const pt of [12, 24.5, 36, 48, 72]) {
+    const spaced = { ...withVocab, interlineadoPuntos: pt };
+    const cssSpaced = ctx.M.Exam.pageCss(spaced);
+    assert.ok(cssSpaced.includes('line-height: ' + pt + 'pt; margin: 12pt 0 6pt'),
+      'HTML/PDF: interlineado exacto de ' + pt + ' puntos');
+    assert.ok(cssSpaced.includes('.page .txt + .voc { margin-top: ' + pt + 'pt; }'),
+      'HTML/PDF: la distancia al vocabulario sigue los ' + pt + ' puntos');
+    const zipped = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(spaced), { base64: true });
+    const documentXml = await zipped.file('word/document.xml').async('string');
+    const twips = Math.round(pt * 20);
+    assert.ok(documentXml.includes('<w:spacing w:before="240" w:after="' + twips +
+      '" w:line="' + twips + '" w:lineRule="exact"/>'),
+      'Word: interlineado exacto y separación del vocabulario de ' + pt + ' puntos');
+  }
+  const noVocab = { ...S, interlineadoPuntos: 48, vocabItems: [] };
+  const noVocabZip = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(noVocab), { base64: true });
+  const noVocabXml = await noVocabZip.file('word/document.xml').async('string');
+  assert.match(noVocabXml, /<w:spacing w:before="240" w:after="120" w:line="960" w:lineRule="exact"\/>/,
+    'Sin vocabulario, conservar el espacio habitual anterior a las preguntas');
+  const legacy = { ...withVocab, interlineado: 2.5 };
+  const legacyZip = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(legacy), { base64: true });
+  const legacyXml = await legacyZip.file('word/document.xml').async('string');
+  assert.match(legacyXml, /w:line="600" w:lineRule="auto"/,
+    'Los .examen antiguos mantienen su interlineado multiplicador en Word');
+  assert.ok(ctx.M.Exam.pageCss(legacy).includes('line-height: 2.5;'),
+    'Los .examen antiguos mantienen su interlineado multiplicador en HTML');
+  const settingsSource = fs.readFileSync(path.join(root, 'js/start.js'), 'utf8');
+  assert.match(settingsSource, /id="latinSpacingPt" class="si" type="number"/);
+  assert.match(settingsSource, /S\.interlineadoPuntos = n/);
+  assert.match(settingsSource, /M\.store\.set\('interlineadoPuntos', n\)/);
+  assert.match(settingsSource, /restoreExam\(saved\)/);
+
   // Espaciado de pregunta 4: compatibilidad de los valores anteriores y
   // conversión precisa a twips en Word (1 cm ~= 567 twips).
   assert.equal(ctx.M.Exam.q4Space({}), 2.6);
