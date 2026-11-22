@@ -63,11 +63,13 @@ function boot() {
   M.Propose.evolDisplay=(v)=>v;
   M.Propose.prefDisplay=(v)=>v;
   M.Propose.latDisplay=(v)=>v;
-  const window = { addEventListener:(event, callback)=>{events[event]=callback;},
-    matchMedia:()=>({matches:false}) };
   const document = {visibilityState:'visible',
     addEventListener:(event, callback)=>{events[event]=callback;}};
-  const context={M,window,document,setTimeout,clearTimeout,console,Intl};
+  const context={M,document,setTimeout,clearTimeout,console,Intl,
+    Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,Buffer};
+  context.window=context;
+  context.addEventListener=(event, callback)=>{events[event]=callback;};
+  context.matchMedia=()=>({matches:false});
   vm.createContext(context);
   vm.runInContext(read('js/exam.js'),context,{filename:'js/exam.js'});
   vm.runInContext(read('js/render.js'),context,{filename:'js/render.js'});
