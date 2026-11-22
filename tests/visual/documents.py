@@ -78,6 +78,78 @@ def line_spans(img):
         else: groups[-1].append(item)
     return [(round(sum(x[0] for x in g)/len(g),1),max(x[2]-x[1] for x in g)) for g in groups]
 
+def validate_long_pagination():
+    """Paginación real en Word (LibreOffice) y PDF de cuatro interlineados amplios."""
+    points = (24, 36, 48, 60)
+    docs = [OUT / f"paginacion-{pt}.docx" for pt in points]
+    assert all(doc.is_file() for doc in docs), "Faltan DOCX de paginación"
+    run("libreoffice", "-env:UserInstallation=file:///tmp/examinator-visual-lo",
+        "--headless", "--convert-to", "pdf:writer_pdf_Export",
+        "--outdir", str(OUT), *map(str, docs))
+    expected = [f"lectio{i:03d}" for i in range(1, 71)]
+    for pt in points:
+        for kind, pdf in (
+            ("PDF", OUT / f"paginacion-{pt}-print.pdf"),
+            ("Word", OUT / f"paginacion-{pt}.pdf"),
+        ):
+            assert pdf.is_file(), f"Falta {kind} con interlineado {pt}"
+            content = run("pdftotext", "-layout", str(pdf), "-")
+            raw_pages = content.split("\f")
+            if raw_pages and raw_pages[-1] == "":
+                raw_pages.pop()
+            assert 2 <= len(raw_pages) <= 30, (
+                f"{kind} {pt}pt: número de páginas fuera del rango esperado: {len(raw_pages)}"
+            )
+            assert all(page.strip() for page in raw_pages), (
+                f"{kind} {pt}pt: se ha generado una página completamente vacía"
+            )
+            markers = re.findall(r"lectio\d{3}", content)
+            assert markers == expected, (
+                f"{kind} {pt}pt: falta, sobra o está desordenada alguna línea del texto latino; "
+                f"primeros errores: {markers[:8]}"
+            )
+            assert content.count("incipitlatinum") == content.count("explicitlatinum") == 1, (
+                f"{kind} {pt}pt: comienzo o final del texto ausente o duplicado"
+            )
+            assert content.count("Vocabulario") == 1 and content.count("puella") == 1, (
+                f"{kind} {pt}pt: vocabulario ausente o duplicado"
+            )
+            assert content.index("explicitlatinum") < content.index("Vocabulario"), (
+                f"{kind} {pt}pt: el vocabulario aparece antes de terminar el texto"
+            )
+            # Las cajas de texto no deben montarse ni dejar aislado el título.
+            xml = ET.fromstring(run("pdftotext", "-bbox", str(pdf), "-"))
+            pages = []
+            for elem in xml.iter():
+                if elem.tag.rsplit("}", 1)[-1] != "page":
+                    continue
+                entries = []
+                for word in elem.iter():
+                    if word.tag.rsplit("}", 1)[-1] != "word":
+                        continue
+                    entries.append(("".join(word.itertext()).strip(".,;:"),
+                                    float(word.attrib["yMin"]), float(word.attrib["yMax"])))
+                pages.append(entries)
+            assert len(pages) == len(raw_pages), (
+                f"{kind} {pt}pt: lectura inconsistente de páginas"
+            )
+            def position(token):
+                found = [(i, y0, y1) for i, entries in enumerate(pages)
+                         for text, y0, y1 in entries if text == token]
+                assert len(found) == 1, f"{kind} {pt}pt: posición no única de {token!r}: {found}"
+                return found[0]
+            final = position("explicitlatinum")
+            title = position("Vocabulario")
+            first_entry = position("puella")
+            assert title[0] >= final[0] and title[0] == first_entry[0], (
+                f"{kind} {pt}pt: el vocabulario se adelanta o queda su título aislado"
+            )
+            if title[0] == final[0]:
+                assert title[1] >= final[2] - 1, (
+                    f"{kind} {pt}pt: solapamiento entre el final del latín y el vocabulario"
+                )
+            print(f"OK {kind} {pt}pt: {len(pages)} páginas, 70 marcadores íntegros y vocabulario continuo")
+
 def validate():
     assert PDF.is_file() and DOCX.is_file(), "La suite de navegador no generó PDF/Word reales"
     # Perfil de LibreOffice aislado; no altera el equipo ni los archivos del usuario.
@@ -112,7 +184,8 @@ def validate():
         internal=[s for s in spans if top+4<s[0]<bottom-4]
         assert not internal, f"{name}: se detectan líneas interiores: {internal}"
         print(name,"marco exterior (píxeles):",(top,bottom),"otras líneas:",spans)
-    print("OK: visualizaciones reales de Word y PDF; cabeceras, márgenes y marco exterior coherentes.")
+    validate_long_pagination()
+    print("OK: visualizaciones reales de Word y PDF; cabeceras, paginación y marco exterior coherentes.")
 
 if __name__ == "__main__":
     try: validate()

@@ -159,7 +159,7 @@ module.exports = (async () => {
     const cssSpaced = ctx.M.Exam.pageCss(spaced);
     assert.ok(cssSpaced.includes('line-height: ' + pt + 'pt; margin: 12pt 0 6pt'),
       'HTML/PDF: interlineado exacto de ' + pt + ' puntos');
-    assert.ok(cssSpaced.includes('.page .txt + .voc { margin-top: ' + pt + 'pt; }'),
+    assert.ok(cssSpaced.includes('.page .txt.hasVocab + .voc { margin-top: ' + pt + 'pt; }'),
       'HTML/PDF: la distancia al vocabulario sigue los ' + pt + ' puntos');
     const zipped = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(spaced), { base64: true });
     const documentXml = await zipped.file('word/document.xml').async('string');
@@ -168,6 +168,31 @@ module.exports = (async () => {
       '" w:line="' + twips + '" w:lineRule="exact"/>'),
       'Word: interlineado exacto y separación del vocabulario de ' + pt + ' puntos');
   }
+  assert.equal(ctx.M.Exam.vocabGapPt({ interlineadoPuntos: 36 }), 36, 'Sin dato prevalece la distancia proporcional');
+  assert.equal(ctx.M.Exam.vocabGapPt({ interlineadoPuntos: 36, espacioVocabularioPuntos: null }), 36);
+  assert.equal(ctx.M.Exam.vocabGapPt({ interlineadoPuntos: 36, espacioVocabularioPuntos: 0 }), 0, '0 pt manual es válido');
+  assert.equal(ctx.M.Exam.vocabGapPt({ interlineadoPuntos: 36, espacioVocabularioPuntos: 160 }), 36, 'Valor inválido no llega al CSS');
+  assert.equal(ctx.M.Exam.recommendedLatinSpacingPt({ tamano: 10.5 }), 17);
+  assert.match(ctx.M.Exam.latinSpacingWarning({ tamano: 10.5, interlineadoPuntos: 12 }), /macrones y breves/);
+  assert.equal(ctx.M.Exam.latinSpacingWarning({ tamano: 10.5, interlineadoPuntos: 24 }), '');
+  for (const gap of [0, 8.5, 24, 60, 144]) {
+    const adjusted = { ...withVocab, interlineadoPuntos: 36, espacioVocabularioPuntos: gap };
+    const cssGap = ctx.M.Exam.pageCss(adjusted);
+    assert.ok(cssGap.includes('.page .txt.hasVocab + .voc { margin-top: ' + gap + 'pt; }'));
+    assert.ok(cssGap.includes('.page .txt.hasVocab { margin-bottom: 0; }'),
+      'La separación manual no debe añadir los 6 pt del margen latino al elegir 0');
+    assert.match(ctx.M.Exam.html(adjusted), /class="txt hasVocab"/);
+    const wordGap = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(adjusted), { base64: true });
+    const wordGapXml = await wordGap.file('word/document.xml').async('string');
+    assert.ok(wordGapXml.includes('<w:spacing w:before="240" w:after="' +
+      Math.round(gap * 20) + '" w:line="720" w:lineRule="exact"/>'),
+      'Word conserva la separación manual ' + gap + 'pt independiente de las líneas');
+  }
+  const legacyManual = { ...withVocab, interlineado: 2.5, espacioVocabularioPuntos: 18 };
+  const legacyManualZip = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(legacyManual), { base64: true });
+  assert.match(await legacyManualZip.file('word/document.xml').async('string'),
+    /w:after="360" w:line="600" w:lineRule="auto"/,
+    'Examen heredado puede ajustar solamente el vocabulario sin convertir su interlineado');
   const noVocab = { ...S, interlineadoPuntos: 48, vocabItems: [] };
   const noVocabZip = await ctx.JSZip.loadAsync(await ctx.M.Exam.docx(noVocab), { base64: true });
   const noVocabXml = await noVocabZip.file('word/document.xml').async('string');
@@ -185,6 +210,11 @@ module.exports = (async () => {
   assert.match(settingsSource, /S\.interlineadoPuntos = n/);
   assert.match(settingsSource, /M\.store\.set\('interlineadoPuntos', n\)/);
   assert.match(settingsSource, /restoreExam\(saved\)/);
+  assert.match(settingsSource, /id="vocabGapMode"/);
+  assert.match(settingsSource, /id="vocabGapPt"/);
+  assert.match(settingsSource, /espacioVocabularioPuntos = null/);
+  assert.match(settingsSource, /setLatinSpacing\(e.target\)/);
+  assert.match(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), /id="previewLatinSpacing"/);
 
   // Espaciado de pregunta 4: compatibilidad de los valores anteriores y
   // conversión precisa a twips en Word (1 cm ~= 567 twips).

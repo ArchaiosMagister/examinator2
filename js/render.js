@@ -113,6 +113,20 @@
   // Para mostrar en Ajustes y medir la distancia hasta el vocabulario.
   E.latinLineSpacingPt = (S) => E.exactLatinLineSpacingPt(S) ??
     Number((E.fontSize(S) * E.legacyLatinLineSpacing(S)).toFixed(2));
+  // null = separación automática de una línea; 0 es un valor manual válido.
+  E.vocabGapPt = (S) => {
+    const raw = S.espacioVocabularioPuntos;
+    if (raw === undefined || raw === null || raw === '') return E.latinLineSpacingPt(S);
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 144 ? n : E.latinLineSpacingPt(S);
+  };
+  // Un aviso no bloqueante; las fuentes con macrones y breves necesitan holgura.
+  E.recommendedLatinSpacingPt = (S) => Math.ceil(E.fontSize(S) * 1.6 * 2) / 2;
+  E.latinSpacingWarning = (S, value = E.latinLineSpacingPt(S)) =>
+    Number.isFinite(Number(value)) && Number(value) < E.recommendedLatinSpacingPt(S)
+      ? 'El interlineado puede recortar macrones y breves; se recomiendan al menos ' +
+        E.recommendedLatinSpacingPt(S) + ' pt para esta letra.'
+      : '';
   E.questionSpace = (S) => { const n = Number(S.espacioPreguntas ?? 0.3); return Number.isFinite(n) && n >= 0 && n <= 10 ? n : 0.3; };
   // S.hueco ya está expresado en centímetros en los archivos .examen antiguos.
   // Conservarlo evita migraciones y mantiene el mismo espaciado en Word, PDF y vista previa.
@@ -147,7 +161,7 @@
   E.pageCss = function (S) {
     const exactPt = E.exactLatinLineSpacingPt(S);
     const lh = exactPt === null ? E.legacyLatinLineSpacing(S) : exactPt + 'pt';
-    const vocabGapPt = E.latinLineSpacingPt(S);
+    const vocabGapPt = E.vocabGapPt(S);
     return `
 .page { font-family: ${E.fontStack(S.fuente)}; font-size: ${E.fontSize(S)}pt; color: #111; line-height: 1.35; }
 .page .hdr { width: 100%; border: .75pt solid #222; font-weight: bold; box-sizing: border-box; }
@@ -157,7 +171,7 @@
 /* Solo marco exterior; no dibujar líneas entre filas ni columnas. */
 .page .ttl { margin: 9pt 0 0; padding: 5pt 0 6pt; border-top: .6pt solid #9a9a9a; border-bottom: .6pt solid #9a9a9a; text-align: center; }
 .page .ttl .t { font-weight: bold; }
-.page .txt { font-style: italic; text-align: justify; line-height: ${lh}; margin: 12pt 0 6pt; hyphens: manual; }
+.page .txt { font-style: italic; text-align: justify; line-height: ${lh}; margin: 12pt 0 6pt; hyphens: manual; orphans: 2; widows: 2; }
 .page .litTable { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 6pt 0 0;
   font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', 'Gentium Book Plus', serif;
   font-size: 10pt; font-weight: normal; line-height: 1.25;
@@ -170,8 +184,9 @@
 .page .txt u { text-decoration-thickness: .7pt; text-underline-offset: 2pt; }
 .page .voc { border: 1px solid #222; padding: 3pt 7pt 4pt; margin: 6pt 0 10pt; }
 /* Una línea de separación antes del vocabulario, proporcional al interlineado del texto. */
-.page .txt + .voc { margin-top: ${vocabGapPt}pt; }
-.page .voc .vh { text-align: center; font-weight: bold; margin-bottom: 1pt; }
+.page .txt.hasVocab { margin-bottom: 0; }
+.page .txt.hasVocab + .voc { margin-top: ${vocabGapPt}pt; }
+.page .voc .vh { text-align: center; font-weight: bold; margin-bottom: 1pt; break-after: avoid; }
 .page .voc p { margin: 0; padding-left: 1.2em; text-indent: -1.2em; }
 .page ol.q { margin: 0; padding-left: 2.1em; }
 .page ol.q > li { font-weight: bold; margin: 0 0 ${E.questionSpace(S)}cm; padding-left: .4em; }
@@ -200,7 +215,7 @@
     return `<div class="page">
 <div class="hdr"><div class="hdr-row"><span>${esc(E.headerLeft(S))}</span><span>${esc(E.headerRight(S))}</span></div><div class="hdr-row"><span>Nombre y apellidos:</span><span>Fecha:</span></div></div>
 <div class="ttl">${S.titulo ? `<div class="t">${esc(S.titulo)}</div>` : ''}${ref ? `<div class="r">${ref}</div>` : ''}${!S.titulo && !ref ? '&nbsp;' : ''}</div>
-<div class="txt">${runsHtml(E.textRuns(S)) || '&nbsp;'}</div>
+<div class="txt${voc.length ? ' hasVocab' : ''}">${runsHtml(E.textRuns(S)) || '&nbsp;'}</div>
 ${voc.length ? `<div class="voc"><div class="vh">Vocabulario</div>${voc.map((v) => `<p><i>${esc(v.head)}:</i> ${esc(E.vocabGlosses(v))}${v.note ? ` (${esc(v.note)})` : ''}</p>`).join('')}</div>` : ''}
 <ol class="q">
 ${E.questionList(S).map((q, k) => `<li${k === 3 && E.hasLiterature(S) ? ' class="q4BeforeLiterature"' : ''}>${esc(q)}${k === 3 ? `<ol class="s">${q4.map((r) => `<li>${runsHtml(r)}</li>`).join('')}</ol>` : ''}</li>`).join('\n')}
@@ -258,11 +273,11 @@ ${E.pageCss(S)}
     const lh = exactPt === null ? Math.round(240 * E.legacyLatinLineSpacing(S)) : Math.round(20 * exactPt);
     const lineRule = exactPt === null ? 'auto' : 'exact';
     const voc = E.vocabList(S);
-    const afterLatin = voc.length ? Math.round(20 * E.latinLineSpacingPt(S)) : 120;
+    const afterLatin = voc.length ? Math.round(20 * E.vocabGapPt(S)) : 120;
     body += para(E.textRuns(S).map((r) => ({ t: r.t, u: r.u, i: !r.n })), `<w:spacing w:before="240" w:after="${afterLatin}" w:line="${lh}" w:lineRule="${lineRule}"/><w:jc w:val="both"/>`);
     // vocabulario
     if (voc.length) {
-      const ps = [para([{ t: 'Vocabulario', b: true }], sp0 + '<w:jc w:val="center"/>')]
+      const ps = [para([{ t: 'Vocabulario', b: true }], sp0 + '<w:keepNext/><w:jc w:val="center"/>')]
         .concat(voc.map((v) => para([{ t: v.head + ':', i: true }, { t: ' ' + E.vocabGlosses(v) + (v.note ? ' (' + v.note + ')' : '') }], sp0 + '<w:ind w:left="284" w:hanging="284"/>')));
       body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${bd(6)}</w:tblBorders><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${W}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/></w:tcPr>${ps.join('')}</w:tc></w:tr></w:tbl>`;
       body += para([{ t: '' }], sp0);
