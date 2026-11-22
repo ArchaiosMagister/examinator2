@@ -187,7 +187,7 @@
   async function init() {
     const quickSpacing = $('#previewLatinSpacing');
     quickSpacing.addEventListener('input', (e) => showLatinSpacingWarning(e.target.value));
-    quickSpacing.addEventListener('change', (e) => setLatinSpacing(e.target);
+    quickSpacing.addEventListener('change', (e) => setLatinSpacing(e.target));
     $('#btnNew').onclick = () => M.modal('Examen nuevo', '<p>¿Empezar un examen nuevo? Se borrará el que estás editando (guárdalo antes si lo quieres conservar).</p>', [{ label: 'Cancelar' }, { label: 'Empezar', primary: true, onclick: () => { M.loadExam(M.newExam()); } }]);
     $('#btnOpen').onclick = () => openExam().catch((e) => M.toast('No se pudo abrir el examen: ' + e.message, 6000));
     $('#btnSave').onclick = saveExam;
