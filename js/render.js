@@ -98,6 +98,21 @@
     'Elige dos de estas cuatro preguntas (2p.):'
   ];
   E.fontSize = (S) => { const n = Number(S.tamano ?? 11); return Number.isFinite(n) && n >= 6 && n <= 36 ? n : 11; };
+  // Interlineado exacto (puntos de Word). Los .examen anteriores guardaban un multiplicador.
+  // La lectura del valor heredado no lo modifica hasta que el profesor elija puntos.
+  E.exactLatinLineSpacingPt = (S) => {
+    const raw = S.interlineadoPuntos;
+    if (raw === undefined || raw === null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 12 && n <= 144 ? n : null;
+  };
+  E.legacyLatinLineSpacing = (S) => {
+    const n = Number(S.interlineado ?? 3);
+    return Number.isFinite(n) && n >= 1 && n <= 6 ? n : 3;
+  };
+  // Para mostrar en Ajustes y medir la distancia hasta el vocabulario.
+  E.latinLineSpacingPt = (S) => E.exactLatinLineSpacingPt(S) ??
+    Number((E.fontSize(S) * E.legacyLatinLineSpacing(S)).toFixed(2));
   E.questionSpace = (S) => { const n = Number(S.espacioPreguntas ?? 0.3); return Number.isFinite(n) && n >= 0 && n <= 10 ? n : 0.3; };
   // S.hueco ya está expresado en centímetros en los archivos .examen antiguos.
   // Conservarlo evita migraciones y mantiene el mismo espaciado en Word, PDF y vista previa.
@@ -130,7 +145,9 @@
   /* ---------- HTML ---------- */
   const runsHtml = (rs) => rs.map((r) => { let h = esc(r.t); if (r.i) h = `<i>${h}</i>`; if (r.n) h = `<span class="nr">${h}</span>`; if (r.u) h = `<u>${h}</u>`; return h; }).join('');
   E.pageCss = function (S) {
-    const lh = S.interlineado || 3;
+    const exactPt = E.exactLatinLineSpacingPt(S);
+    const lh = exactPt === null ? E.legacyLatinLineSpacing(S) : exactPt + 'pt';
+    const vocabGapPt = E.latinLineSpacingPt(S);
     return `
 .page { font-family: ${E.fontStack(S.fuente)}; font-size: ${E.fontSize(S)}pt; color: #111; line-height: 1.35; }
 .page .hdr { width: 100%; border: .75pt solid #222; font-weight: bold; box-sizing: border-box; }
@@ -152,6 +169,8 @@
 .page .txt .nr { font-style: normal; }
 .page .txt u { text-decoration-thickness: .7pt; text-underline-offset: 2pt; }
 .page .voc { border: 1px solid #222; padding: 3pt 7pt 4pt; margin: 6pt 0 10pt; }
+/* Una línea de separación antes del vocabulario, proporcional al interlineado del texto. */
+.page .txt + .voc { margin-top: ${vocabGapPt}pt; }
 .page .voc .vh { text-align: center; font-weight: bold; margin-bottom: 1pt; }
 .page .voc p { margin: 0; padding-left: 1.2em; text-indent: -1.2em; }
 .page ol.q { margin: 0; padding-left: 2.1em; }
@@ -233,11 +252,15 @@ ${E.pageCss(S)}
     if (refRuns.length) tl.push(refRuns);
     if (!tl.length) tl.push([{ t: '' }]);
     tl.forEach((r, k) => { body += para(r, `${pbdr(k === 0, k === tl.length - 1)}<w:spacing w:before="${k === 0 ? 200 : 0}" w:after="0"/><w:jc w:val="center"/>`); });
-    // texto
-    const lh = Math.round(240 * (S.interlineado || 3));
-    body += para(E.textRuns(S).map((r) => ({ t: r.t, u: r.u, i: !r.n })), `<w:spacing w:before="240" w:after="120" w:line="${lh}" w:lineRule="auto"/><w:jc w:val="both"/>`);
-    // vocabulario
+    // Texto latino: Word usa exactamente los puntos elegidos (20 twips = 1 pt).
+    // En archivos anteriores se conserva el multiplicador original de Word.
+    const exactPt = E.exactLatinLineSpacingPt(S);
+    const lh = exactPt === null ? Math.round(240 * E.legacyLatinLineSpacing(S)) : Math.round(20 * exactPt);
+    const lineRule = exactPt === null ? 'auto' : 'exact';
     const voc = E.vocabList(S);
+    const afterLatin = voc.length ? Math.round(20 * E.latinLineSpacingPt(S)) : 120;
+    body += para(E.textRuns(S).map((r) => ({ t: r.t, u: r.u, i: !r.n })), `<w:spacing w:before="240" w:after="${afterLatin}" w:line="${lh}" w:lineRule="${lineRule}"/><w:jc w:val="both"/>`);
+    // vocabulario
     if (voc.length) {
       const ps = [para([{ t: 'Vocabulario', b: true }], sp0 + '<w:jc w:val="center"/>')]
         .concat(voc.map((v) => para([{ t: v.head + ':', i: true }, { t: ' ' + E.vocabGlosses(v) + (v.note ? ' (' + v.note + ')' : '') }], sp0 + '<w:ind w:left="284" w:hanging="284"/>')));
