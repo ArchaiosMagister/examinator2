@@ -89,7 +89,8 @@ def validate_exam_reopening():
     converted = OUT / "recuperacion.pdf"
     assert converted.is_file(), "No se pudo convertir el Word reabierto a PDF"
     for label, source in (("PDF", pdf), ("Word", converted)):
-        text = re.sub(r"\\s+", " ", run("pdftotext", "-layout", str(source), "-"))
+        text = re.sub(r"\s+", " ", run("pdftotext", "-layout", str(source), "-"))
+        text = text.replace("æ", "ae").replace("Æ", "Ae").replace("œ", "oe").replace("Œ", "Oe")
         for fragment in (
             "Prueba guardada y reabierta",
             "Gallia est omnis divisa in partes tres.",
