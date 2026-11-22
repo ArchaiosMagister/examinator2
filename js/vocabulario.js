@@ -76,10 +76,11 @@
     const keys = new Set(names.filter(Boolean).map(formsOnly ? key : lemma));
     return V.rows().find((r) => (formsOnly ? r.formas.map(key) : [lemma(r.lema || r.head)]).some((k) => keys.has(k)));
   };
-  M.vocabEntries = async function (args) {
+  M.vocabEntries = async function (args, contextTokens) {
     const entries = await M.call('vocabEntries', args);
+    const tokens = contextTokens || M.S.tokens || [];
     for (const e of entries) {
-      const t = (M.S.tokens || []).find((t) => t.sel && t.sel.lid === e.lid);
+      const t = tokens.find((t) => t.sel && t.sel.lid === e.lid);
       const preferred = V.find([t && t.lplain, t && t.lemma, e.head]);
       if (preferred) Object.assign(e, { head: preferred.head, trad: preferred.trad, note: preferred.note, glosasSeparadas: preferred.glosasSeparadas === true, preferred: true });
     }
