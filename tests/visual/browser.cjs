@@ -110,6 +110,7 @@ async function pageAudit(browser, engine, v, base) {
     await page.waitForFunction(() => !!document.querySelector('#sheet .hdr'));
     await stable(page);
     await visibleInViewport(page,'#preview','#preview');
+    await visibleInViewport(page,'#previewLatinSpacing','Interlineado rápido en vista previa');
     const doc = await page.evaluate(() => {
       const pv=document.querySelector('#preview'), sh=document.querySelector('#sheet');
       const header=sh.querySelector('.hdr');
@@ -127,6 +128,20 @@ async function pageAudit(browser, engine, v, base) {
     assert.ok(doc.sheetWidth <= doc.previewWidth+2,
       'Hoja recortada en vista previa: '+JSON.stringify(doc));
     await snap('preview');
+    // El control rápido cambia el mismo examen y se sincroniza con el motor.
+    const quick = page.locator('#previewLatinSpacing');
+    await quick.fill('36');
+    await quick.dispatchEvent('change');
+    await page.waitForFunction(() => M.S.interlineadoPuntos === 36 &&
+      M.Exam.pageCss(M.S).includes('line-height: 36pt;'));
+    assert.equal(await quick.inputValue(), '36');
+    await quick.fill('12');
+    await quick.dispatchEvent('change');
+    await page.waitForFunction(() => !document.querySelector('#previewSpacingWarning').classList.contains('hidden'));
+    assert.match(await page.locator('#previewSpacingWarning').innerText(), /macrones y breves/);
+    await quick.fill('36');
+    await quick.dispatchEvent('change');
+    await page.waitForFunction(() => document.querySelector('#previewSpacingWarning').classList.contains('hidden'));
     // El catálogo y el lector son flujos visuales distintos en móviles.
     if (compact) await page.locator('#btnMobileLibrary').click();
     else await page.locator('#btnLib').click();
@@ -180,6 +195,39 @@ async function pageAudit(browser, engine, v, base) {
       await page.waitForTimeout(250);
       await page.locator('#sheet .hdr').screenshot({path:path.join(OUT,'cabecera-vista-previa.png')});
       console.log('OK visual export: documentos PDF/Word generados por el motor real.');
+      // Casos reales multipágina: cuatro interlineados y distancias al vocabulario.
+      // Cada marcador latino debe conservarse en PDF y Word sin saltos ni duplicados.
+      for (const pt of [24, 36, 48, 60]) {
+        const longFixture = await page.evaluate(async (pt) => {
+          const S = M.newExam();
+          const text = 'incipitlatinum ' + Array.from({length:70}, (_, i) =>
+            'Gallia est omnis divisa in partes tres et incolas habet lectio' +
+              String(i + 1).padStart(3, '0') + '.').join(' ') + ' explicitlatinum';
+          Object.assign(S, {
+            documento: 'repaso', tipo: 'Texto de repaso', titulo: 'Pasaje largo de prueba',
+            texto: text, textAnalyzed: text, tokens: [], interlineadoPuntos: pt,
+            espacioVocabularioPuntos: pt === 48 ? 0 : pt === 60 ? 16 : null,
+            vocabItems: [
+              {on:true,head:'Gallia, –ae',trad:'Galia'},
+              {on:true,head:'incŏla, –ae',trad:'habitante'}
+            ], literatura: {texto:'',traduccion:''}
+          });
+          return {html: M.Exam.printDoc(S), docx: await M.Exam.docx(S)};
+        }, pt);
+        const name = 'paginacion-' + pt;
+        fs.writeFileSync(path.join(OUT, name + '.docx'), Buffer.from(longFixture.docx, 'base64'));
+        const rendered = await ctx.newPage();
+        try {
+          await rendered.goto(base, {waitUntil:'domcontentloaded'});
+          await rendered.setContent(longFixture.html, {waitUntil:'load'});
+          await rendered.evaluate(() => document.fonts.ready);
+          await rendered.pdf({
+            path:path.join(OUT, name + '-print.pdf'),
+            format:'A4',printBackground:true,preferCSSPageSize:true
+          });
+        } finally { await rendered.close(); }
+      }
+      console.log('OK: ocho documentos multipágina de paginación preparados para verificar.');
     }
   } catch (e) {
     await snap('fallo').catch(()=>{});
