@@ -43,10 +43,18 @@
     const p = await window.api.saveFile({ defaultName: baseName() + '.examen', filters: [{ name: 'Examen de Examinator', extensions: ['examen'] }], data, encoding: 'utf8' });
     if (p) M.toast('Guardado: ' + p, 3500); else if (window.api.web) M.toast('Examen descargado (archivo .examen).');
   }
+  // Las preferencias actuales no deben sobrescribir el interlineado de archivos antiguos.
+  function restoreExam(saved) {
+    const exam = Object.assign(M.newExam(), saved);
+    if (!Object.prototype.hasOwnProperty.call(saved, 'interlineadoPuntos')) {
+      exam.interlineadoPuntos = null;
+    }
+    return exam;
+  }
   async function openExam() {
     const r = await window.api.openFile({ filters: [{ name: 'Examen de Examinator', extensions: ['examen', 'json'] }] });
     if (!r) return;
-    try { const S = JSON.parse(r.text); if (!S.examinator && !S.v) throw new Error(); delete S.examinator; M.loadExam(Object.assign(M.newExam(), S)); M.toast('Examen abierto.'); }
+    try { const S = JSON.parse(r.text); if (!S.examinator && !S.v) throw new Error(); delete S.examinator; M.loadExam(restoreExam(S)); M.toast('Examen abierto.'); }
     catch (e) { M.toast('Ese archivo no es un examen de Examinator.', 4000); }
   }
   function settings() {
@@ -62,7 +70,11 @@
         <span class="small muted">Palatino y Palatino Linotype se usan si están instaladas; Gentium Book Plus está incluida como alternativa.</span></div>
       <div class="field"><label>Tamaño de letra (puntos)</label><select class="sz">${[10, 10.5, 11, 11.5, 12, 13, 14].map((n) => `<option value="${n}">${String(n).replace('.', ',')}</option>`).join('')}</select></div>
       <div class="field"><label>Espacio entre preguntas (cm)</label><input class="sq" type="number" min="0" max="10" step="0.1"></div>
-      <div class="field"><label>Interlineado del texto latino</label><select class="si"><option value="2">doble</option><option value="2.5">2,5</option><option value="3">triple</option><option value="3.5">3,5</option></select></div>
+      <div class="field"><label for="latinSpacingPt">Interlineado del texto latino (puntos de Word)</label>
+        <input id="latinSpacingPt" class="si" type="number" min="12" max="144" step="any" inputmode="decimal" list="latinSpacingExamples">
+        <datalist id="latinSpacingExamples">${[18, 24, 30, 36, 42, 48, 60].map((n) => `<option value="${n}"></option>`).join('')}</datalist>
+        <span class="small muted">Escribe el valor exacto en puntos, también con decimales (12–144). Deja una línea de separación proporcional antes del vocabulario. Se aplica a la vista previa, Word y PDF.</span>
+      </div>
       <div class="field"><label for="q4Space">Espacio entre los apartados de la pregunta 4 (cm)</label><input id="q4Space" class="sh" type="number" min="0" max="10" step="0.05" inputmode="decimal"><span class="small muted">Hueco para responder, de 0 a 10 cm, ajustable de 0,05 en 0,05 cm. Se aplica a vista previa, Word y PDF.</span></div>
       <button class="tbtn sv">Vocabulario preferente…</button><p class="small muted">Los ajustes, el vocabulario y las descargas se guardan en este navegador.</p>`;
     const m = M.modal('Ajustes', html, [{ label: 'Cerrar', primary: true }]);
@@ -71,7 +83,7 @@
     b.querySelector('.sz').value = String(S.tamano ?? 11);
     b.querySelector('.sq').value = String(S.espacioPreguntas ?? 0.3);
     b.querySelector('.sv').onclick = () => M.openVocabulary();
-    b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(S.interlineado); b.querySelector('.sh').value = String(M.Exam.q4Space(S));
+    b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(M.Exam.latinLineSpacingPt(S)); b.querySelector('.sh').value = String(M.Exam.q4Space(S));
     b.addEventListener('change', (e) => {
       if (e.target.classList.contains('stheme')) {
         window.EXTheme.set(e.target.value);
@@ -80,7 +92,17 @@
       if (e.target.classList.contains('sz')) { S.tamano = +e.target.value; M.store.set('tamano', S.tamano); }
       if (e.target.classList.contains('sq')) { const n = +e.target.value; if (!Number.isFinite(n) || n < 0 || n > 10) return; S.espacioPreguntas = n; M.store.set('espacioPreguntas', n); }
       if (e.target.classList.contains('sf')) { S.fuente = e.target.value; M.store.set('fuente', S.fuente); }
-      if (e.target.classList.contains('si')) { S.interlineado = +e.target.value; M.store.set('interlineado', S.interlineado); }
+      if (e.target.classList.contains('si')) {
+        const value = e.target.value.trim();
+        const n = Number(value);
+        if (!value || !Number.isFinite(n) || n < 12 || n > 144) {
+          e.target.value = String(M.Exam.latinLineSpacingPt(S));
+          M.toast('Introduce un interlineado entre 12 y 144 puntos.');
+          return;
+        }
+        S.interlineadoPuntos = n;
+        M.store.set('interlineadoPuntos', n);
+      }
       if (e.target.classList.contains('sh')) {
         const value = e.target.value.trim();
         const n = Number(value);
@@ -110,7 +132,7 @@
     // Una preferencia dañada no debe impedir abrir la aplicación.
     const valid = saved && typeof saved === 'object' && !Array.isArray(saved) &&
       typeof saved.texto === 'string';
-    M.loadExam(valid ? Object.assign(M.newExam(), saved) : M.newExam());
+    M.loadExam(valid ? restoreExam(saved) : M.newExam());
   }
   window.addEventListener('DOMContentLoaded', init);
 })();
