@@ -705,10 +705,18 @@
       $('.vhint', ed).textContent = 'Comprueba el texto antes de exportar; puedes reintentarlo desde Word o PDF.';
       return;
     }
-    const on = S.vocabItems.filter((v) => v.on).length;
-    $('.vhint', ed).textContent = !S.vocabItems.length ? 'El vocabulario se prepara al analizar el texto.'
-      : S.vocMode === 'todo' ? `${on} de ${S.vocabItems.length} entradas en el examen, en orden alfabético. Desmarca las que no quieras.`
-        : `${on} ${on === 1 ? 'entrada elegida' : 'entradas elegidas'}. Los nombres propios vienen marcados; marca aquí las demás que quieras, o púlsalas en el texto.`;
+    const updateHint = () => {
+      const on = S.vocabItems.filter((v) => v.on).length;
+      const incomplete = S.vocabItems.filter((v) => v.manual && v.on &&
+        (!String(v.head || '').trim() || !String(v.trad || '').trim())).length;
+      const description = !S.vocabItems.length ? 'El vocabulario se prepara al analizar el texto.'
+        : S.vocMode === 'todo' ? `${on} de ${S.vocabItems.length} entradas en el examen, en orden alfabético. Desmarca las que no quieras.`
+          : `${on} ${on === 1 ? 'entrada elegida' : 'entradas elegidas'}. Los nombres propios vienen marcados; marca aquí las demás que quieras, o púlsalas en el texto.`;
+      $('.vhint', ed).textContent = description + (incomplete
+        ? ` Atención: ${incomplete} ${incomplete === 1 ? 'entrada manual incompleta se omitirá' : 'entradas manuales incompletas se omitirán'} al exportar.`
+        : '');
+    };
+    updateHint();
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
     const order = S.vocabItems.map((v, k) => [v, k]).sort((a, b) => coll.compare(M.fold(a[0].head), M.fold(b[0].head)));
     box.innerHTML = order.map(([v, k]) => `<div class="vrow ${v.on ? '' : 'off'}" data-k="${k}">
@@ -729,7 +737,7 @@
       if (e.target.classList.contains('vn')) { v.note = e.target.value; v.eNote = true; }
       const saveButton = row.querySelector('.vsave');
       if (saveButton) { saveButton.textContent = 'Guardar'; saveButton.classList.remove('saved'); }
-      changed();
+      updateHint(); changed();
     };
     box.onchange = (e) => {
       if (e.target.classList.contains('vsplit')) {
@@ -747,8 +755,7 @@
       const row = e.target.closest('.vrow'); const v = S.vocabItems[+row.dataset.k];
       v.on = e.target.checked; row.classList.toggle('off', !v.on);
       renderWords(); changed();
-      const on2 = S.vocabItems.filter((x) => x.on).length;
-      $('.vhint', ed).textContent = S.vocMode === 'todo' ? `${on2} de ${S.vocabItems.length} entradas en el examen, en orden alfabético. Desmarca las que no quieras.` : `${on2} ${on2 === 1 ? 'entrada elegida' : 'entradas elegidas'}. Los nombres propios vienen marcados; marca aquí las demás que quieras, o púlsalas en el texto.`;
+      updateHint();
     };
   }
 
