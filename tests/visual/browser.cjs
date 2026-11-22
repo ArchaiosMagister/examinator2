@@ -188,6 +188,8 @@ async function pageAudit(browser, engine, v, base) {
         M.loadExam(S);
       });
       await page.waitForFunction(() => M.S && M.S.titulo==='Prueba guardada y reabierta');
+      assert.match(await page.locator('#editor .vhint').innerText(), /entrada manual incompleta se omitirá/,
+        'El profesor debe conocer las entradas incompletas antes de exportar');
       const pendingSave=page.waitForEvent('download');
       await page.locator('#btnSave').click();
       const savedDownload=await pendingSave;
