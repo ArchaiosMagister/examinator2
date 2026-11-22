@@ -134,6 +134,24 @@ async function verifySelections() {
   assert.equal(S.prev[1].txt,'cupit','La modificación manual permanece');
   console.log('OK: subrayados y preverbios preservados tras puntuación, inserción y sustitución.');
 }
+async function verifyLemmaChoice() {
+  const {M,setAnalyzer}=boot();
+  const original=token('Caesar',0,'n',1,0);
+  const S=exam([original], 'Caesar.');
+  S.subr=[{cat:'n',toks:[0]}];
+  M.S=S;
+  S.texto='Caesar!';
+  const newToken=token('Caesar',0,'n',99,0);
+  newToken.cands.push({lid:1,morphos:['n'],lemma:'Caesar',proper:false});
+  setAnalyzer(()=>[newToken]);
+  await M.ensureAnalyzed(S);
+  assert.equal(S.tokens[0].sel.lid,1,
+    'La elección docente de lema debe prevalecer frente al nuevo análisis automático');
+  assert.ok(S.vocabItems.some(v=>v.lid===1),
+    'El glosario recalculado debe utilizar el lema conservado');
+  console.log('OK: los lemas elegidos por el docente sobreviven a la relematización.');
+}
+
 async function verifyAtomicAnalysis() {
   const {M,setAnalyzer,setFailVocabulary,notices}=boot();
   const a=[token('Caesar',0,'n',1,0),token('amat',1,'v',2,7)];
@@ -208,6 +226,7 @@ async function verifySaving() {
 }
 (async()=>{
   await verifySelections();
+  await verifyLemmaChoice();
   await verifyAtomicAnalysis();
   await verifyIncompleteVocab();
   await verifySaving();
