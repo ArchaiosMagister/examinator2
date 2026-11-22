@@ -230,6 +230,7 @@ async function pageAudit(browser, engine, v, base) {
       const recovered=await page.evaluate(async () => {
         const S=M.S;
         await M.ensureAnalyzed(S);
+        await M.Exam.prepareLiterature(S);
         return {html:M.Exam.printDoc(S),docx:await M.Exam.docx(S)};
       });
       assert.match(recovered.html,/Gallia est omnis divisa in partes tres/);
