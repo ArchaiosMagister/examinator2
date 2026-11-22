@@ -49,7 +49,50 @@
     if (!Object.prototype.hasOwnProperty.call(saved, 'interlineadoPuntos')) {
       exam.interlineadoPuntos = null;
     }
+    if (!Object.prototype.hasOwnProperty.call(saved, 'espacioVocabularioPuntos')) {
+      exam.espacioVocabularioPuntos = null;
+    }
     return exam;
+  }
+  function showLatinSpacingWarning(value) {
+    const msg = String(value).trim() ? M.Exam.latinSpacingWarning(M.S, value) : '';
+    for (const id of ['#latinSpacingWarning', '#previewSpacingWarning']) {
+      const el = $(id);
+      if (!el) continue;
+      el.textContent = msg;
+      el.classList.toggle('hidden', !msg);
+    }
+  }
+  M.syncLatinSpacingControls = function () {
+    const S = M.S;
+    if (!S) return;
+    const value = String(M.Exam.latinLineSpacingPt(S));
+    for (const id of ['#latinSpacingPt', '#previewLatinSpacing']) {
+      const control = $(id);
+      if (control && document.activeElement !== control) control.value = value;
+    }
+    const mode = $('#vocabGapMode'), gap = $('#vocabGapPt');
+    const custom = S.espacioVocabularioPuntos !== null &&
+      S.espacioVocabularioPuntos !== undefined && S.espacioVocabularioPuntos !== '';
+    if (mode) mode.value = custom ? 'manual' : 'auto';
+    if (gap) {
+      gap.disabled = !custom;
+      if (document.activeElement !== gap) gap.value = String(M.Exam.vocabGapPt(S));
+    }
+    showLatinSpacingWarning(value);
+  };
+  function setLatinSpacing(control) {
+    const raw = control.value.trim(), n = Number(raw);
+    if (!raw || !Number.isFinite(n) || n < 12 || n > 144) {
+      control.value = String(M.Exam.latinLineSpacingPt(M.S));
+      M.toast('Introduce un interlineado entre 12 y 144 puntos.');
+      M.syncLatinSpacingControls();
+      return;
+    }
+    M.S.interlineadoPuntos = n;
+    M.store.set('interlineadoPuntos', n);
+    M.persist(); M.preview();
+    showLatinSpacingWarning(n);
   }
   async function openExam() {
     const r = await window.api.openFile({ filters: [{ name: 'Examen de Examinator', extensions: ['examen', 'json'] }] });
@@ -73,7 +116,16 @@
       <div class="field"><label for="latinSpacingPt">Interlineado del texto latino (puntos de Word)</label>
         <input id="latinSpacingPt" class="si" type="number" min="12" max="144" step="any" inputmode="decimal" list="latinSpacingExamples">
         <datalist id="latinSpacingExamples">${[18, 24, 30, 36, 42, 48, 60].map((n) => `<option value="${n}"></option>`).join('')}</datalist>
-        <span class="small muted">Escribe el valor exacto en puntos, también con decimales (12–144). Deja una línea de separación proporcional antes del vocabulario. Se aplica a la vista previa, Word y PDF.</span>
+        <span class="small muted">Escribe el valor exacto en puntos, también con decimales (12–144). Se aplica a la vista previa, Word y PDF.</span>
+        <span id="latinSpacingWarning" class="spacing-warning hidden" role="status" aria-live="polite"></span>
+      </div>
+      <div class="field"><label for="vocabGapMode">Separación entre texto y vocabulario</label>
+        <select id="vocabGapMode" class="vgm">
+          <option value="auto">Automática (una línea de interlineado)</option>
+          <option value="manual">Personalizada en puntos</option>
+        </select>
+        <input id="vocabGapPt" class="svgap" type="number" min="0" max="144" step="any" inputmode="decimal" aria-label="Separación personalizada en puntos">
+        <span class="small muted">En automático sigue el interlineado. En personalizado puedes escribir de 0 a 144 pt, sin modificar las líneas del texto.</span>
       </div>
       <div class="field"><label for="q4Space">Espacio entre los apartados de la pregunta 4 (cm)</label><input id="q4Space" class="sh" type="number" min="0" max="10" step="0.05" inputmode="decimal"><span class="small muted">Hueco para responder, de 0 a 10 cm, ajustable de 0,05 en 0,05 cm. Se aplica a vista previa, Word y PDF.</span></div>
       <button class="tbtn sv">Vocabulario preferente…</button><p class="small muted">Los ajustes, el vocabulario y las descargas se guardan en este navegador.</p>`;
@@ -84,6 +136,10 @@
     b.querySelector('.sq').value = String(S.espacioPreguntas ?? 0.3);
     b.querySelector('.sv').onclick = () => M.openVocabulary();
     b.querySelector('.sf').value = S.fuente; b.querySelector('.si').value = String(M.Exam.latinLineSpacingPt(S)); b.querySelector('.sh').value = String(M.Exam.q4Space(S));
+    M.syncLatinSpacingControls();
+    b.addEventListener('input', (e) => {
+      if (e.target.classList.contains('si')) showLatinSpacingWarning(e.target.value);
+    });
     b.addEventListener('change', (e) => {
       if (e.target.classList.contains('stheme')) {
         window.EXTheme.set(e.target.value);
@@ -93,15 +149,26 @@
       if (e.target.classList.contains('sq')) { const n = +e.target.value; if (!Number.isFinite(n) || n < 0 || n > 10) return; S.espacioPreguntas = n; M.store.set('espacioPreguntas', n); }
       if (e.target.classList.contains('sf')) { S.fuente = e.target.value; M.store.set('fuente', S.fuente); }
       if (e.target.classList.contains('si')) {
-        const value = e.target.value.trim();
-        const n = Number(value);
-        if (!value || !Number.isFinite(n) || n < 12 || n > 144) {
-          e.target.value = String(M.Exam.latinLineSpacingPt(S));
-          M.toast('Introduce un interlineado entre 12 y 144 puntos.');
+        setLatinSpacing(e.target);
+        return;
+      }
+      if (e.target.classList.contains('vgm')) {
+        if (e.target.value === 'auto') {
+          S.espacioVocabularioPuntos = null;
+        } else {
+          S.espacioVocabularioPuntos = M.Exam.vocabGapPt(S);
+        }
+        M.store.set('espacioVocabularioPuntos', S.espacioVocabularioPuntos);
+      }
+      if (e.target.classList.contains('svgap')) {
+        const value = e.target.value.trim(), n = Number(value);
+        if (!value || !Number.isFinite(n) || n < 0 || n > 144) {
+          e.target.value = String(M.Exam.vocabGapPt(S));
+          M.toast('Introduce una separación entre 0 y 144 puntos.');
           return;
         }
-        S.interlineadoPuntos = n;
-        M.store.set('interlineadoPuntos', n);
+        S.espacioVocabularioPuntos = n;
+        M.store.set('espacioVocabularioPuntos', n);
       }
       if (e.target.classList.contains('sh')) {
         const value = e.target.value.trim();
@@ -118,6 +185,9 @@
   }
 
   async function init() {
+    const quickSpacing = $('#previewLatinSpacing');
+    quickSpacing.addEventListener('input', (e) => showLatinSpacingWarning(e.target.value));
+    quickSpacing.addEventListener('change', (e) => setLatinSpacing(e.target);
     $('#btnNew').onclick = () => M.modal('Examen nuevo', '<p>¿Empezar un examen nuevo? Se borrará el que estás editando (guárdalo antes si lo quieres conservar).</p>', [{ label: 'Cancelar' }, { label: 'Empezar', primary: true, onclick: () => { M.loadExam(M.newExam()); } }]);
     $('#btnOpen').onclick = () => openExam().catch((e) => M.toast('No se pudo abrir el examen: ' + e.message, 6000));
     $('#btnSave').onclick = saveExam;
