@@ -12,7 +12,8 @@
     for (const s of S.subr || []) for (const i of s.toks || []) under.add(i);
     // Todos los tokens, no solo los subrayados: la grafía æ/œ es visible
     // también en las palabras que no formen parte del análisis morfológico.
-    const toks = (S.tokens || []).slice().sort((a, b) => a.s - b.s);
+    const stale = typeof S.textAnalyzed === 'string' && S.textAnalyzed !== text;
+    const toks = (stale ? [] : (S.tokens || [])).slice().sort((a, b) => a.s - b.s);
     const runs = []; let pos = 0;
     for (const t of toks) {
       if (t.s < pos || t.e > text.length || text.slice(t.s, t.e) !== t.w) continue;
@@ -60,7 +61,10 @@
       : '‘' + trad + '’';
   };
   E.vocabList = function (S) {
-    const out = (S.vocabItems || []).filter((v) => v.on);
+    const stale = typeof S.textAnalyzed === 'string' && S.textAnalyzed !== S.texto;
+    const out = (S.vocabItems || []).filter((v) =>
+      v && v.on && String(v.head || '').trim() && String(v.trad || '').trim() &&
+      (!stale || v.manual));
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
     // Æ/Œ son variantes tipográficas de ae/oe; conservar su posición
     // alfabética (sin perder el primer carácter por el filtro [a-z]).
@@ -73,7 +77,10 @@
   const coll = new Intl.Collator('es', { sensitivity: 'base' });
   const abc = (arr) => arr.filter((x) => x && String(x).trim()).map((x) => String(x).trim()).sort((a, b) => coll.compare(a, b));
   E.q4 = function (S) {
-    const p = (S.prev || []).filter((x) => x && x.txt).map((x) => Object.assign({}, x, { txt: M.Propose.prevDisplay(S, x).trim().toLowerCase() })).sort((a, b) => coll.compare(a.txt, b.txt));
+    const stale = typeof S.textAnalyzed === 'string' && S.textAnalyzed !== S.texto;
+    const p = (S.prev || []).filter((x) => x && x.txt && (!stale || !x.lplain))
+      .map((x) => Object.assign({}, x, { txt: M.Propose.prevDisplay(S, x).trim().toLowerCase() }))
+      .sort((a, b) => coll.compare(a.txt, b.txt));
     const qa = [{ t: 'Modificación preverbial a partir de ' }];
     if (p.length >= 2) { qa.push({ t: p[0].txt, i: true }, { t: ` (${p[0].n}) y de ` }, { t: p[1].txt, i: true }, { t: ` (${p[1].n}). Cinco derivados en total en lengua propia.` }); }
     else if (p.length === 1) { qa.push({ t: p[0].txt, i: true }, { t: ` (${p[0].n}). Cinco derivados en total en lengua propia.` }); }
