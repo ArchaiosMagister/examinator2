@@ -73,7 +73,10 @@ function boot() {
   vm.createContext(context);
   vm.runInContext(read('js/exam.js'),context,{filename:'js/exam.js'});
   vm.runInContext(read('js/render.js'),context,{filename:'js/render.js'});
+  // JSZip detecta Node al inicializarse sin document; el editor sí lo usa.
+  delete context.document;
   vm.runInContext(read('lib/jszip.min.js'),context,{filename:'lib/jszip.min.js'});
+  context.document=document;
   M.renderEditor=()=>{};
   M.preview=()=>{};
   return {M,events,storage,notices,messages,
