@@ -17,7 +17,9 @@
       documento: 'parcial', literatura: { texto: '', traduccion: '', autor: '', obra: '', cita: '', urn: '' },
       tamano: M.store.get('tamano', 10.5), espacioPreguntas: M.store.get('espacioPreguntas', 0.3),
       fuente: M.store.get('fuente', 'Palatino Linotype'), interlineado: M.store.get('interlineado', 3),
-       interlineadoPuntos: M.store.get('interlineadoPuntos', null), hueco: M.store.get('hueco', 2.6)
+       interlineadoPuntos: M.store.get('interlineadoPuntos', null),
+       espacioVocabularioPuntos: M.store.get('espacioVocabularioPuntos', null),
+       hueco: M.store.get('hueco', 2.6)
     };
     P.evol(S); P.pref(S); P.latin(S);
     return S;
@@ -31,6 +33,7 @@
     let st = $('#pageCss'); if (!st) { st = el('style', { id: 'pageCss' }); document.head.appendChild(st); }
     st.textContent = M.Exam.pageCss(M.S);
     sh.innerHTML = M.Exam.html(M.S);
+    M.syncLatinSpacingControls?.();
     M.LatinReader?.reset(); // Cerrar tarjetas asociadas a palabras de la hoja anterior.
     fitSheet();
     const exam = M.S;
