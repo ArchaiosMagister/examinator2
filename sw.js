@@ -1,6 +1,6 @@
 /* Recursos locales para uso offline; nunca consultamos GeneradorExamenes al ejecutar. */
 'use strict';
-const VERSION = 'examinator2-v1.1.5-visual-responsive-20261121';
+const VERSION = 'examinator2-v1.1.5-latin-spacing-20261122';
 const PREFIX = 'examinator2-';
 const PRECACHE = [
   "./",
