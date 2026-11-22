@@ -63,7 +63,8 @@
   E.vocabList = function (S) {
     const stale = typeof S.textAnalyzed === 'string' && S.textAnalyzed !== S.texto;
     const out = (S.vocabItems || []).filter((v) =>
-      v && v.on && String(v.head || '').trim() && String(v.trad || '').trim() &&
+      v && v.on && (!v.manual ||
+        (String(v.head || '').trim() && String(v.trad || '').trim())) &&
       (!stale || v.manual));
     const coll = new Intl.Collator('es', { sensitivity: 'base' });
     // Æ/Œ son variantes tipográficas de ae/oe; conservar su posición
