@@ -41,7 +41,14 @@
 </nav>
 <main id="main">
   <section id="editor"></section>
-  <section id="preview"><div id="sheetSizer"><div class="sheet" id="sheet"></div></div></section>
+  <section id="preview">
+    <div class="preview-tools" aria-label="Formato rápido del texto latino">
+      <label for="previewLatinSpacing">Interlineado latino (pt)</label>
+      <input id="previewLatinSpacing" type="number" min="12" max="144" step="any" inputmode="decimal" aria-describedby="previewSpacingWarning">
+      <span id="previewSpacingWarning" class="spacing-warning hidden" role="status" aria-live="polite"></span>
+    </div>
+    <div id="sheetSizer"><div class="sheet" id="sheet"></div></div>
+  </section>
 </main>
 <div id="lib" class="hidden"></div>
 <script src="js/datos.js"></script>
