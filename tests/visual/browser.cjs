@@ -208,7 +208,7 @@ async function pageAudit(browser, engine, v, base) {
             texto: text, textAnalyzed: text, tokens: [], interlineadoPuntos: pt,
             espacioVocabularioPuntos: pt === 48 ? 0 : pt === 60 ? 16 : null,
             vocabItems: [
-              {on:true,head:'Gallia, –ae',trad:'Galia'},
+              {on:true,head:'puella, –ae',trad:'muchacha'},
               {on:true,head:'incŏla, –ae',trad:'habitante'}
             ], literatura: {texto:'',traduccion:''}
           });
