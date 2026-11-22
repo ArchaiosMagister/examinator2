@@ -17,7 +17,8 @@ function boot() {
   const M = {
     Propose: {},
     $: (sel) => sel === '#busy' ? {classList: { add() {}, remove() {} }} : null,
-    $$: () => [], el: () => ({}), esc: (s) => String(s),
+    $: () => [], el: () => ({}), esc: (s) => String(s),
+    fold: (s) => String(s || '').normalize('NFD').toLowerCase(),
     store: { get: (k, d) => storage.has(k) ? storage.get(k) : d,
       set: (k, value) => { if (failStore) return false; storage.set(k, stable(value)); return true; }},
     debounce: () => () => {}, toast: (msg) => notices.push(msg),
