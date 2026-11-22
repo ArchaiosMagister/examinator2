@@ -9,12 +9,18 @@
     return t.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'Examen';
   };
   let exportingWord = false, exportingPdf = false;
+  function warnIncompleteVocab(S) {
+    const omitted = (S.vocabItems || []).filter((v) => v.manual && v.on &&
+      (!String(v.head || '').trim() || !String(v.trad || '').trim())).length;
+    if (omitted) M.toast('Se han omitido ' + omitted + ' entradas manuales incompletas del documento; siguen guardadas para que puedas terminarlas.', 7000);
+  }
   async function exportDocx() {
     if (exportingWord) return;
     exportingWord = true;
     const exam = M.S;
     try {
       await M.ensureAnalyzed(exam);
+      warnIncompleteVocab(exam);
       const data = await M.Exam.docx(exam);
       if (M.S !== exam || exam.texto !== exam.textAnalyzed) {
         throw new Error('El texto ha cambiado durante la exportación. Inténtalo de nuevo.');
@@ -29,6 +35,7 @@
     const exam = M.S;
     try {
       await M.ensureAnalyzed(exam);
+      warnIncompleteVocab(exam);
       // Preparar siempre el mismo examen del comienzo al fin de la exportación.
       await M.Exam.prepareLiterature(exam);
       if (M.S !== exam) return;
