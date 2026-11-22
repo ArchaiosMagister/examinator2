@@ -78,6 +78,32 @@ def line_spans(img):
         else: groups[-1].append(item)
     return [(round(sum(x[0] for x in g)/len(g),1),max(x[2]-x[1] for x in g)) for g in groups]
 
+def validate_exam_reopening():
+    """Comparar un .examen guardado y reabierto mediante dos motores de PDF."""
+    docx = OUT / "recuperacion.docx"
+    pdf = OUT / "recuperacion-print.pdf"
+    assert docx.is_file() and pdf.is_file(), "El navegador no generó el examen recuperado"
+    run("libreoffice", "-env:UserInstallation=file:///tmp/examinator-visual-lo",
+        "--headless", "--convert-to", "pdf:writer_pdf_Export",
+        "--outdir", str(OUT), str(docx))
+    converted = OUT / "recuperacion.pdf"
+    assert converted.is_file(), "No se pudo convertir el Word reabierto a PDF"
+    for label, source in (("PDF", pdf), ("Word", converted)):
+        text = re.sub(r"\\s+", " ", run("pdftotext", "-layout", str(source), "-"))
+        for fragment in (
+            "Prueba guardada y reabierta",
+            "Gallia est omnis divisa in partes tres.",
+            "Gallia, -ae",
+            "Galia",
+            "Roma aeterna est.",
+            "Roma es eterna.",
+        ):
+            assert fragment in text, f"{label}: falta el contenido recuperado {fragment!r}"
+        assert text.count("Vocabulario") == 1, f"{label}: vocabulario ausente o duplicado"
+        assert "‘’" not in text, f"{label}: se imprimió una entrada manual vacía"
+        print(f"OK {label}: examen guardado y recuperado conserva texto, vocabulario y literatura")
+
+
 def validate_long_pagination():
     """Paginación real en Word (LibreOffice) y PDF de cuatro interlineados amplios."""
     points = (24, 36, 48, 60)
@@ -184,8 +210,9 @@ def validate():
         internal=[s for s in spans if top+4<s[0]<bottom-4]
         assert not internal, f"{name}: se detectan líneas interiores: {internal}"
         print(name,"marco exterior (píxeles):",(top,bottom),"otras líneas:",spans)
+    validate_exam_reopening()
     validate_long_pagination()
-    print("OK: visualizaciones reales de Word y PDF; cabeceras, paginación y marco exterior coherentes.")
+    print("OK: visualizaciones reales de Word y PDF; cabeceras, recuperación, paginación y marco exterior coherentes.")
 
 if __name__ == "__main__":
     try: validate()
