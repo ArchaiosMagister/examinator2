@@ -22,6 +22,8 @@ jobs:
         run: node tests/regression.cjs
       - name: "Estabilidad 1.0: análisis concurrente, archivos y configuración"
         run: node tests/stability-1.0.cjs
+      - name: "Integridad del examen, correcciones docentes y autoguardado"
+        run: node tests/exam-integrity.cjs
       - name: "Temas claro, oscuro y OLED: preferencias y documento intacto"
         run: node tests/theme-modes.cjs
       - name: Diptongos æ/œ y excepciones filológicas

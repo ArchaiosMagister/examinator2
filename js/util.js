@@ -60,7 +60,12 @@ M.modal = function (title, bodyHtml, buttons, opts) {
 
 M.store = {
   get(k, d) { try { const v = localStorage.getItem('examinator.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('examinator.' + k, JSON.stringify(v)); } catch (e) { /* */ } }
+  set(k, v) {
+    try {
+      localStorage.setItem('examinator.' + k, JSON.stringify(v));
+      return true;
+    } catch (e) { return false; }
+  }
 };
 
 M.shortList = (names, n) => { n = n || 3; return names.length > n ? names.slice(0, n).join(', ') + ` y ${names.length - n} más` : names.join(', '); };
