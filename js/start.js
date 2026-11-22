@@ -14,7 +14,11 @@
     exportingWord = true;
     const exam = M.S;
     try {
+      await M.ensureAnalyzed(exam);
       const data = await M.Exam.docx(exam);
+      if (M.S !== exam || exam.texto !== exam.textAnalyzed) {
+        throw new Error('El texto ha cambiado durante la exportación. Inténtalo de nuevo.');
+      }
       const p = await window.api.saveFile({ defaultName: baseName(exam) + '.docx', filters: [{ name: 'Documento de Word', extensions: ['docx'] }], data, encoding: 'base64' });
       if (p) done(p); else if (window.api.web) M.toast('Documento de Word descargado.');
     } finally { exportingWord = false; }
@@ -24,9 +28,13 @@
     exportingPdf = true;
     const exam = M.S;
     try {
+      await M.ensureAnalyzed(exam);
       // Preparar siempre el mismo examen del comienzo al fin de la exportación.
       await M.Exam.prepareLiterature(exam);
       if (M.S !== exam) return;
+      if (exam.texto !== exam.textAnalyzed) {
+        throw new Error('El texto ha cambiado durante la exportación. Inténtalo de nuevo.');
+      }
       const p = await window.api.makePdf({ html: M.Exam.printDoc(exam), defaultName: baseName(exam) + '.pdf' });
       if (p && p.prepared) return; // iPad: descarga/compartición ya ofrecidas.
       if (p) done(p);
@@ -43,9 +51,76 @@
     const p = await window.api.saveFile({ defaultName: baseName() + '.examen', filters: [{ name: 'Examen de Examinator', extensions: ['examen'] }], data, encoding: 'utf8' });
     if (p) M.toast('Guardado: ' + p, 3500); else if (window.api.web) M.toast('Examen descargado (archivo .examen).');
   }
+  // Comprobar la estructura ANTES de sustituir el examen activo. Se admiten
+  // propiedades ausentes de .examen antiguos, pero no datos de tipo inesperado.
+  function validateExam(saved) {
+    const obj = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+    if (!obj(saved) || typeof saved.texto !== 'string') {
+      throw new Error('El archivo no contiene un texto de examen válido.');
+    }
+    for (const name of ['tokens', 'vocabItems', 'subr', 'prev', 'evol', 'pref', 'latin']) {
+      if (saved[name] !== undefined && !Array.isArray(saved[name])) {
+        throw new Error('El apartado ' + name + ' tiene un formato incorrecto.');
+      }
+    }
+    for (const name of ['texto', 'textAnalyzed', 'tipo', 'asig', 'titulo',
+      'refAutor', 'refObra', 'refCita', 'source', 'urn', 'documento']) {
+      if (saved[name] !== undefined && typeof saved[name] !== 'string') {
+        throw new Error('El campo ' + name + ' no contiene texto válido.');
+      }
+    }
+    if (saved.literatura !== undefined && (!obj(saved.literatura) ||
+      ['texto', 'traduccion', 'autor', 'obra', 'cita', 'urn'].some((k) =>
+        saved.literatura[k] !== undefined && typeof saved.literatura[k] !== 'string'))) {
+      throw new Error('El apartado de literatura tiene un formato incorrecto.');
+    }
+    if (saved.tokens && saved.tokens.some((t) => !obj(t) ||
+      typeof t.w !== 'string' || !Number.isInteger(t.i) ||
+      !Number.isInteger(t.s) || !Number.isInteger(t.e) ||
+      t.s < 0 || t.e < t.s || t.e > saved.texto.length ||
+      !Array.isArray(t.cands) || (t.sel !== undefined && t.sel !== null && !obj(t.sel)))) {
+      throw new Error('El análisis morfológico almacenado es inválido.');
+    }
+    if (saved.vocabItems && saved.vocabItems.some((v) => !obj(v) ||
+      ['head', 'trad', 'note'].some((k) => v[k] !== undefined && typeof v[k] !== 'string'))) {
+      throw new Error('El vocabulario almacenado es inválido.');
+    }
+    if (saved.subr && saved.subr.some((v) => !obj(v) || typeof v.cat !== 'string' ||
+      !Array.isArray(v.toks) || v.toks.some((i) => !Number.isInteger(i) || i < 0))) {
+      throw new Error('Los subrayados tienen un formato incorrecto.');
+    }
+    if (saved.prev && saved.prev.some((v) => !obj(v) ||
+      (v.txt !== undefined && typeof v.txt !== 'string') ||
+      (v.rows !== undefined && !Array.isArray(v.rows)))) {
+      throw new Error('Las opciones de modificación preverbial tienen un formato incorrecto.');
+    }
+    if (saved.pref && saved.pref.some((v) => typeof v !== 'string')) {
+      throw new Error('Las palabras con prefijos tienen un formato incorrecto.');
+    }
+    if (saved.latin && saved.latin.some((v) => typeof v !== 'string')) {
+      throw new Error('Los latinismos tienen un formato incorrecto.');
+    }
+    if (saved.evol && saved.evol.some((v) => !obj(v) ||
+      (v.w !== undefined && typeof v.w !== 'string'))) {
+      throw new Error('Las evoluciones fonéticas tienen un formato incorrecto.');
+    }
+    for (const key of ['tamano', 'espacioPreguntas', 'hueco', 'interlineado',
+      'interlineadoPuntos', 'espacioVocabularioPuntos']) {
+      if (saved[key] !== undefined && saved[key] !== null &&
+          (typeof saved[key] !== 'number' || !Number.isFinite(saved[key]))) {
+        throw new Error('El ajuste ' + key + ' tiene un valor inválido.');
+      }
+    }
+    return saved;
+  }
   // Las preferencias actuales no deben sobrescribir el interlineado de archivos antiguos.
   function restoreExam(saved) {
-    const exam = Object.assign(M.newExam(), saved);
+    validateExam(saved);
+    const exam = M.newExam();
+    for (const [key, value] of Object.entries(saved)) {
+      if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype' &&
+          key !== 'examinator') exam[key] = value;
+    }
     if (!Object.prototype.hasOwnProperty.call(saved, 'interlineadoPuntos')) {
       exam.interlineadoPuntos = null;
     }
@@ -97,8 +172,21 @@
   async function openExam() {
     const r = await window.api.openFile({ filters: [{ name: 'Examen de Examinator', extensions: ['examen', 'json'] }] });
     if (!r) return;
-    try { const S = JSON.parse(r.text); if (!S.examinator && !S.v) throw new Error(); delete S.examinator; M.loadExam(restoreExam(S)); M.toast('Examen abierto.'); }
-    catch (e) { M.toast('Ese archivo no es un examen de Examinator.', 4000); }
+    const previous = M.S;
+    try {
+      const saved = JSON.parse(r.text);
+      if (!saved.examinator && !saved.v) throw new Error('Falta la identificación del examen.');
+      const loaded = restoreExam(saved);
+      try { M.loadExam(loaded); }
+      catch (error) {
+        // Incluso ante un fallo inesperado al pintar, conservar la sesión.
+        if (previous) M.loadExam(previous);
+        throw error;
+      }
+      M.toast('Examen abierto.');
+    } catch (e) {
+      M.toast('No se pudo abrir el examen (' + e.message + '). Se conserva el anterior.', 7000);
+    }
   }
   function settings() {
     const S = M.S;
@@ -202,7 +290,12 @@
     // Una preferencia dañada no debe impedir abrir la aplicación.
     const valid = saved && typeof saved === 'object' && !Array.isArray(saved) &&
       typeof saved.texto === 'string';
-    M.loadExam(valid ? restoreExam(saved) : M.newExam());
+    try { M.loadExam(valid ? restoreExam(saved) : M.newExam()); }
+    catch (_) {
+      // Una copia automática dañada tampoco debe impedir arrancar.
+      M.loadExam(M.newExam());
+      M.toast('La copia automática estaba dañada. Puedes abrir una copia .examen guardada.', 7000);
+    }
   }
   window.addEventListener('DOMContentLoaded', init);
 })();
