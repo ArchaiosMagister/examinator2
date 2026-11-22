@@ -24,7 +24,25 @@
     P.evol(S); P.pref(S); P.latin(S);
     return S;
   };
-  M.persist = M.debounce(() => { M.store.set('current', M.S); }, 400);
+  // Guardado diferido durante la edición, pero síncrono al ocultar o cerrar.
+  let saveTimer = null;
+  M.persistNow = () => {
+    if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
+    if (!M.S) return true;
+    const saved = M.store.set('current', M.S);
+    if (saved === false) M.toast('No se pudo guardar automáticamente. Descarga el archivo .examen para conservar los cambios.', 8000);
+    return saved !== false;
+  };
+  M.persist = () => {
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveTimer = setTimeout(M.persistNow, 400);
+  };
+  window.addEventListener('pagehide', M.persistNow);
+  if (typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') M.persistNow();
+    });
+  }
   const changed = () => { M.persist(); M.preview(); };
 
   /* ---------- vista previa ---------- */
@@ -66,6 +84,106 @@
   window.addEventListener('resize', M.debounce(fitSheet, 100));
 
   /* ---------- análisis del texto ---------- */
+  // Sólo se asocian tokens inequívocamente identificables tras una edición.
+  // El prefijo y sufijo idénticos protegen las palabras repetidas; los
+  // emparejamientos interiores se admiten únicamente si la forma es única.
+  function stableTokenMap(oldTokens, newTokens) {
+    const result = new Map();
+    const key = (t) => String(t && t.w || '').normalize('NFC').toLowerCase();
+    let left = 0;
+    while (left < oldTokens.length && left < newTokens.length &&
+           key(oldTokens[left]) === key(newTokens[left])) {
+      result.set(left, left); left++;
+    }
+    let oldRight = oldTokens.length - 1, newRight = newTokens.length - 1;
+    while (oldRight >= left && newRight >= left &&
+           key(oldTokens[oldRight]) === key(newTokens[newRight])) {
+      result.set(oldRight, newRight); oldRight--; newRight--;
+    }
+    const oldCounts = new Map(), newCounts = new Map(), newPositions = new Map();
+    for (let i = left; i <= oldRight; i++) oldCounts.set(key(oldTokens[i]), (oldCounts.get(key(oldTokens[i])) || 0) + 1);
+    for (let i = left; i <= newRight; i++) {
+      const word = key(newTokens[i]);
+      newCounts.set(word, (newCounts.get(word) || 0) + 1);
+      newPositions.set(word, i);
+    }
+    let lastMapped = left - 1;
+    for (let i = left; i <= oldRight; i++) {
+      const word = key(oldTokens[i]), j = newPositions.get(word);
+      if (oldCounts.get(word) === 1 && newCounts.get(word) === 1 &&
+          j !== undefined && j > lastMapped) {
+        result.set(i, j); lastMapped = j;
+      }
+    }
+    return result;
+  }
+
+  async function restoreTokenLemmas(oldTokens, newTokens, indices, current) {
+    for (const [oldIndex, newIndex] of indices) {
+      const old = oldTokens[oldIndex], next = newTokens[newIndex];
+      if (!old || !next || !old.sel || !Array.isArray(next.cands)) continue;
+      const candidate = next.cands.find((c) => c.lid === old.sel.lid);
+      if (!candidate || (next.sel && next.sel.lid === old.sel.lid)) continue;
+      const morpho = candidate.morphos.includes(old.sel.morpho) ?
+        old.sel.morpho : candidate.morphos[0] || '';
+      try {
+        const info = await M.call('tokenInfo', { lid: candidate.lid, morpho, word: next.w });
+        if (!current()) return false;
+        if (info) Object.assign(next, info);
+        next.sel = { lid: candidate.lid, morpho };
+        next.lemma = candidate.lemma;
+        next.proper = candidate.proper;
+      } catch (_) {
+        // Si falla la reconsulta puntual, conservar el análisis nuevo y válido.
+      }
+    }
+    return true;
+  }
+
+  function restoreQuestionChoices(S, previousTokens, previousSubr, previousPrev, indices) {
+    if (!P.underlineOne || !P.prevCandidates || !P.preverbOne) {
+      P.underline(S); P.preverbs(S); return;
+    }
+    const used = new Set(), saved = [];
+    for (const cat of 'napv') {
+      const old = previousSubr.find((s) => s.cat === cat);
+      if (!old || !Array.isArray(old.toks) || !old.toks.length) continue;
+      const mapped = old.toks.map((i) => indices.get(i));
+      if (mapped.some((i) => i === undefined || used.has(i))) continue;
+      if (!mapped.every((i, j) => {
+        const prior = previousTokens[old.toks[j]], token = S.tokens[i];
+        return token && token.sel && prior && token.cat === prior.cat;
+      })) continue;
+      mapped.forEach((i) => used.add(i));
+      saved.push({ cat, toks: mapped });
+    }
+    S.subr = saved;
+    for (const cat of 'napv') {
+      if (!saved.some((s) => s.cat === cat)) S.subr.push(P.underlineOne(S, cat));
+    }
+    S.subr.sort((a, b) => 'napv'.indexOf(a.cat) - 'napv'.indexOf(b.cat));
+
+    const candidates = P.prevCandidates(S);
+    const kept = [null, null];
+    for (const k of [0, 1]) {
+      const old = previousPrev[k];
+      if (!old || !String(old.txt || '').trim()) continue;
+      if (!old.lplain || !Number.isInteger(old.i)) {
+        // Una forma escrita manualmente no debe sustituirse por el sorteo.
+        kept[k] = Object.assign({}, old); continue;
+      }
+      const index = indices.get(old.i);
+      const candidate = candidates.find((c) => c.i === index && c.lplain === old.lplain);
+      if (candidate) kept[k] = Object.assign({}, candidate, { txt: old.txt, n: old.n });
+    }
+    if (!kept.some(Boolean)) { P.preverbs(S); return; }
+    S.prev = [0, 1].map((k) => kept[k] || {
+      txt: '', n: k === 0 ? (kept[1] && kept[1].n === 3 ? 2 : 3)
+        : (kept[0] && kept[0].n === 3 ? 2 : 3), rows: [], lplain: ''
+    });
+    for (const k of [0, 1]) if (!kept[k]) P.preverbOne(S, k);
+  }
+
   let anaSeq = 0;
   M.analyzeNow = async function (force) {
     const S = M.S;
@@ -74,15 +192,21 @@
     const my = ++anaSeq;
     // Un resultado tardío no debe aplicarse a otro examen ni a otro texto.
     const current = () => my === anaSeq && M.S === S && S.texto === text;
+    const oldTokens = Array.isArray(S.tokens) ? S.tokens : [];
+    const oldSubr = Array.isArray(S.subr) ? S.subr : [];
+    const oldPrev = Array.isArray(S.prev) ? S.prev : [];
     $('#busy').classList.remove('hidden');
     try {
       const toks = text.trim() ? await M.call('analyze', { text }) : [];
       if (!current()) return;
-      S.tokens = toks; S.textAnalyzed = text;
-      await rebuildVocab(true, S);
-      if (!current()) return;
-      P.underline(S);
-      P.preverbs(S);
+      const matched = stableTokenMap(oldTokens, toks);
+      if (!await restoreTokenLemmas(oldTokens, toks, matched, current) || !current()) return;
+      // Crear vocabulario sin tocar el examen hasta que TODAS las consultas
+      // terminen correctamente: un fallo no puede dejar texto y glosario cruzados.
+      const items = await rebuildVocab(true, S, toks);
+      if (!current() || !items) return;
+      S.tokens = toks; S.vocabItems = items; S.textAnalyzed = text;
+      restoreQuestionChoices(S, oldTokens, oldSubr, oldPrev, matched);
     } catch (e) {
       if (current()) M.toast('No se pudo analizar el texto: ' + e.message, 6000);
     } finally {
@@ -91,21 +215,29 @@
     if (!current()) return;
     renderWords(); renderVocab(); renderSubr(); renderQ4(); changed();
   };
+
+  M.ensureAnalyzed = async function (exam = M.S) {
+    if (M.S !== exam) throw new Error('El examen ha cambiado durante la exportación.');
+    if (exam.texto !== exam.textAnalyzed) await M.analyzeNow();
+    if (M.S !== exam || exam.texto !== exam.textAnalyzed) {
+      throw new Error('No se puede exportar un análisis antiguo. Comprueba el texto y vuelve a analizarlo.');
+    }
+  };
   const analyzeSoon = M.debounce(() => M.analyzeNow(), 700);
 
   /* ---------- vocabulario ---------- */
-  function textLids(S = M.S) {
+  function textLids(S = M.S, tokens = S.tokens) {
     const seen = new Set(); const out = [];
-    for (const t of S.tokens || []) if (t.sel && !seen.has(t.sel.lid)) { seen.add(t.sel.lid); out.push(t.sel.lid); }
+    for (const t of tokens || []) if (t.sel && !seen.has(t.sel.lid)) { seen.add(t.sel.lid); out.push(t.sel.lid); }
     return out;
   }
-  async function rebuildVocab(fromText, S = M.S) {
-    const tokens = S.tokens;
-    const lids = textLids(S);
+  async function rebuildVocab(fromText, S = M.S, tokens = S.tokens) {
+    const priorTokens = S.tokens;
+    const lids = textLids(S, tokens);
     const old = new Map((S.vocabItems || []).filter((v) => v.lid).map((v) => [v.lid, v]));
     const need = lids.filter((l) => !old.has(l));
-    const fresh = need.length ? await M.vocabEntries({ lids: need, mode: S.qty }) : [];
-    if (M.S !== S || S.tokens !== tokens) return;
+    const fresh = need.length ? await M.vocabEntries({ lids: need, mode: S.qty }, tokens) : [];
+    if (M.S !== S || S.tokens !== priorTokens) return null;
     const fm = new Map(fresh.map((e) => [e.lid, e]));
     const items = [];
     for (const lid of lids) {
@@ -115,7 +247,7 @@
     }
     for (const v of S.vocabItems || []) if (v.manual) items.push(v);
     const unknown = new Set();
-    for (const t of S.tokens || []) if (!t.sel) {
+    for (const t of tokens || []) if (!t.sel) {
       const e = M.Vocabulary.find([t.w], true) || M.Vocabulary.find([t.w]);
       if (e && !unknown.has(e.head)) {
         unknown.add(e.head);
@@ -123,7 +255,9 @@
         items.push(previous || { customWord: e.head, head: e.head, trad: e.trad, note: e.note, preferred: true, on: S.vocMode === 'todo' });
       }
     }
-    S.vocabItems = items;
+    // Durante un análisis nuevo, el llamador confirma el resultado de forma atómica.
+    if (tokens === S.tokens) S.vocabItems = items;
+    return items;
   }
   M.refreshVocab = async function () {
     const S = M.S;
@@ -264,7 +398,10 @@
       inp.value = S[inp.dataset.k] || '';
       inp.addEventListener('input', () => {
         S[inp.dataset.k] = inp.value;
-        if (inp.dataset.k === 'texto') { analyzeSoon(); }
+        if (inp.dataset.k === 'texto') {
+          analyzeSoon();
+          renderWords(); renderVocab();
+        }
         if (inp.dataset.k === 'asig') M.store.set('asig', inp.value);
         changed();
       });
@@ -364,7 +501,10 @@
   function underlineCat(i) { for (const s of M.S.subr || []) if (s.toks.includes(i)) return s.cat; return null; }
   function renderWords() {
     const S = M.S, box = $('#editor .words'); if (!box) return;
-    if (!S.tokens || !S.tokens.length) { box.innerHTML = `<div class="muted small">${S.texto && S.texto.trim() ? 'Analizando…' : 'Aquí aparecerán las palabras del texto.'}</div>`; return; }
+    if (S.texto !== S.textAnalyzed || !S.tokens || !S.tokens.length) {
+      box.innerHTML = `<div class="muted small">${S.texto && S.texto.trim() ? 'Análisis pendiente. El vocabulario y los subrayados anteriores no se utilizarán en la exportación.' : 'Aquí aparecerán las palabras del texto.'}</div>`;
+      return;
+    }
     const onLids = new Set(S.vocabItems.filter((v) => v.on && v.lid).map((v) => v.lid));
     let h = '', pos = 0; const text = S.texto;
     for (const t of S.tokens) {
@@ -560,6 +700,11 @@
     const S = M.S, ed = $('#editor'); if (!ed) return;
     $$('.vmode button', ed).forEach((b) => b.classList.toggle('on', b.dataset.m === S.vocMode));
     const box = $('.vlist', ed);
+    if (S.texto !== S.textAnalyzed) {
+      box.innerHTML = '<div class="muted small">Análisis del nuevo texto pendiente. No se mostrarán las entradas del texto anterior.</div>';
+      $('.vhint', ed).textContent = 'Comprueba el texto antes de exportar; puedes reintentarlo desde Word o PDF.';
+      return;
+    }
     const on = S.vocabItems.filter((v) => v.on).length;
     $('.vhint', ed).textContent = !S.vocabItems.length ? 'El vocabulario se prepara al analizar el texto.'
       : S.vocMode === 'todo' ? `${on} de ${S.vocabItems.length} entradas en el examen, en orden alfabético. Desmarca las que no quieras.`
@@ -611,7 +756,7 @@
     ++anaSeq; // invalidar respuestas pendientes del examen anterior
     $('#busy').classList.add('hidden');
     M.S = S;
-    M.renderEditor(); M.preview();
+    M.renderEditor(); M.preview(); M.persist();
     if (S.texto && S.texto !== S.textAnalyzed) M.analyzeNow();
     else if (S.texto && Array.isArray(S.tokens) &&
       S.tokens.some((t) => /(ae|oe)/i.test(t.w || '') && t.lig === undefined)) {
