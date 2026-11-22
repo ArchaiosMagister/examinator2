@@ -277,7 +277,7 @@ ${E.pageCss(S)}
     body += para(E.textRuns(S).map((r) => ({ t: r.t, u: r.u, i: !r.n })), `<w:spacing w:before="240" w:after="${afterLatin}" w:line="${lh}" w:lineRule="${lineRule}"/><w:jc w:val="both"/>`);
     // vocabulario
     if (voc.length) {
-      const ps = [para([{ t: 'Vocabulario', b: true }], sp0 + '<w:jc w:val="center"/>')]
+      const ps = [para([{ t: 'Vocabulario', b: true }], sp0 + '<w:keepNext/><w:jc w:val="center"/>')]
         .concat(voc.map((v) => para([{ t: v.head + ':', i: true }, { t: ' ' + E.vocabGlosses(v) + (v.note ? ' (' + v.note + ')' : '') }], sp0 + '<w:ind w:left="284" w:hanging="284"/>')));
       body += `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${bd(6)}</w:tblBorders><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${W}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/></w:tcPr>${ps.join('')}</w:tc></w:tr></w:tbl>`;
       body += para([{ t: '' }], sp0);
