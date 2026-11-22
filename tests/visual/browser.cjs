@@ -58,7 +58,7 @@ async function stable(page) {
 async function pageAudit(browser, engine, v, base) {
   const ctx = await browser.newContext({
     viewport:{width:v.width,height:v.height},deviceScaleFactor:1,
-    isMobile:v.touch,hasTouch:v.touch,serviceWorkers:'block'
+    isMobile:v.touch,hasTouch:v.touch,serviceWorkers:'block',acceptDownloads:true
   });
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
@@ -168,6 +168,86 @@ async function pageAudit(browser, engine, v, base) {
     console.log('OK visual',prefix,JSON.stringify(doc));
     if (engine==='chromium' && v.name==='desktop') {
       await page.locator('#lib [data-act="close"]').click();
+      // Recorrido docente real: crear, editar, guardar en .examen, rechazar
+      // un archivo corrupto sin perder la sesión, reabrir y comparar exportaciones.
+      await page.evaluate(() => {
+        const S=M.newExam();
+        Object.assign(S, {
+          documento:'final',tipo:'Examen final de Latín II',
+          titulo:'Prueba guardada y reabierta',trimestre:'2',
+          texto:'Gallia est omnis divisa in partes tres.',
+          textAnalyzed:'Gallia est omnis divisa in partes tres.',
+          tokens:[],interlineadoPuntos:36,espacioVocabularioPuntos:14,
+          vocabItems:[
+            {manual:true,head:'Gallia, -ae',trad:'Galia',on:true},
+            {manual:true,head:'',trad:'',on:true}
+          ],
+          literatura:{texto:'Roma aeterna est.',traduccion:'Roma es eterna.',
+            autor:'',obra:'',cita:''}
+        });
+        M.loadExam(S);
+      });
+      await page.waitForFunction(() => M.S && M.S.titulo==='Prueba guardada y reabierta');
+      const pendingSave=page.waitForEvent('download');
+      await page.locator('#btnSave').click();
+      const savedDownload=await pendingSave;
+      assert.match(savedDownload.suggestedFilename(),/\.examen$/);
+      const savedBytes=fs.readFileSync(await savedDownload.path());
+      const saved=JSON.parse(savedBytes.toString('utf8'));
+      assert.equal(saved.titulo,'Prueba guardada y reabierta');
+      assert.equal(saved.interlineadoPuntos,36);
+      assert.equal(saved.espacioVocabularioPuntos,14);
+      assert.equal(saved.vocabItems.length,2);
+      await page.locator('#editor [data-k="titulo"]').fill('Edición posterior al guardado');
+      await page.waitForFunction(() => M.S.titulo==='Edición posterior al guardado');
+      const invalidChooser=page.waitForEvent('filechooser');
+      await page.locator('#btnOpen').click();
+      await (await invalidChooser).setFiles({
+        name:'invalido.examen',mimeType:'application/json',
+        buffer:Buffer.from(JSON.stringify({v:1,texto:'Otro texto.',vocabItems:null}))
+      });
+      await page.waitForFunction(() => !![...document.querySelectorAll('.toast')]
+        .find(t=>t.textContent.includes('Se conserva el anterior')));
+      assert.equal(await page.evaluate(() => M.S.titulo),'Edición posterior al guardado',
+        'Un .examen inválido no debe reemplazar el examen abierto');
+      const validChooser=page.waitForEvent('filechooser');
+      await page.locator('#btnOpen').click();
+      await (await validChooser).setFiles({
+        name:'reabrir.examen',mimeType:'application/json',buffer:savedBytes
+      });
+      await page.waitForFunction(() => M.S.titulo==='Prueba guardada y reabierta');
+      const restored=await page.evaluate(() => ({
+        texto:M.S.texto,interlineado:M.S.interlineadoPuntos,
+        separacion:M.S.espacioVocabularioPuntos,
+        vocabItems:M.S.vocabItems,
+        literatura:M.S.literatura
+      }));
+      assert.equal(restored.texto,saved.texto);
+      assert.equal(restored.interlineado,36);
+      assert.equal(restored.separacion,14);
+      assert.equal(restored.vocabItems.length,2);
+      assert.equal(restored.literatura.traduccion,'Roma es eterna.');
+      const recovered=await page.evaluate(async () => {
+        const S=M.S;
+        await M.ensureAnalyzed(S);
+        return {html:M.Exam.printDoc(S),docx:await M.Exam.docx(S)};
+      });
+      assert.match(recovered.html,/Gallia est omnis divisa in partes tres/);
+      assert.match(recovered.html,/Galia/);
+      assert.doesNotMatch(recovered.html,/<i>:\s*<\/i>/);
+      fs.writeFileSync(path.join(OUT,'recuperacion.docx'),
+        Buffer.from(recovered.docx,'base64'));
+      const recoveredPage=await ctx.newPage();
+      try {
+        await recoveredPage.goto(base,{waitUntil:'domcontentloaded'});
+        await recoveredPage.setContent(recovered.html,{waitUntil:'load'});
+        await recoveredPage.evaluate(() => document.fonts.ready);
+        await recoveredPage.pdf({
+          path:path.join(OUT,'recuperacion-print.pdf'),format:'A4',
+          printBackground:true,preferCSSPageSize:true
+        });
+      } finally { await recoveredPage.close(); }
+      console.log('OK flujo completo: guardado, archivo inválido, reapertura y exportación real Word/PDF.');
       const fixture=await page.evaluate(async () => {
         const S=M.newExam();
         Object.assign(S,{
